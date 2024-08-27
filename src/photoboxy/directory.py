@@ -55,7 +55,7 @@ class Directory:
             item_path = f"{self.path}/{f.name}"
             if f.is_dir():
                 updater._add_total('folder')
-                newdir = Directory.new(item_path, f"{self.relpath}{f.name}/", updater)
+                newdir = Directory(item_path, f"{self.relpath}{f.name}/", updater)
                 self.subdirs.append(newdir)
                 newdir.enumerate(updater)
                 if newdir.changed:
@@ -96,7 +96,7 @@ class Directory:
     def _parse_comments(self, filename) -> dict[str, str]:
         comments = {}
         prevkey = None
-        with open(f"{self.dir}/comments.properties") as fh:
+        with open(f"{self.path}/comments.properties") as fh:
             for l in fh.readlines():
                 l = l.strip()
                 newline = False

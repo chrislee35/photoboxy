@@ -165,8 +165,15 @@ class Image(FileItem):
         exifdata = img.getexif()
         for tag_id in exifdata:
             tag = TAGS.get(tag_id, tag_id)
-            data = exifdata.get(tag_id).decode('utf-8')
-            m[tag] = data
+            data = exifdata.get(tag_id)
+            try:
+                if isinstance(data, bytes):
+                    data = data.decode('utf-8')
+                else:
+                    data = str(data)
+                m[tag] = data
+            except Exception:
+                pass
 
 class Video(FileItem):
     def __init__(self, fullpath: str, relpath: str, updater: object):
