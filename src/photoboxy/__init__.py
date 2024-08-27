@@ -1,0 +1,1 @@
+from .photoboxy import VERSION

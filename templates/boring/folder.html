@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> <html>
+<head>
+	<title>Photoboxr - {{ item }}</title>
+	<link rel="stylesheet" href="res/common.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="generator" content="photoboxr {{ version }}" />
+	<meta charset="UTF-8" />
+</head>
+
+<body>
+{% for parent in parents -%}
+<a class='button' href='{{ parent.link }}'>{{ parent.folder }}</a>
+{% endfor %}
+<center>
+
+{% if subdirs -%}
+<div id='subdirs' class='box'>
+	{% for subdir in subdirs -%}
+	<div class='folder'>
+		<a href="{{ subdir.basename | e }}/index.html">
+			<img src="{{ subdir.basename | e }}/{{ subdir.image | e }}" width="100" />
+			<div class="label">{{ subdir.basename }}</div>
+		</a>
+	</div>
+	{% endfor %}
+</div>
+<br/>
+{% endif %}
+
+{% if files -%}
+<div id='images' class='box'>
+	{% for file in files -%}
+	<div class='image'>
+		<a href="{{ file.basename | e }}.html">
+			<img src="thumb/{{ file.thumbname | e }}" />
+		</a>
+	</div>
+	{% endfor %}
+</div>
+<br/>
+{% endif %}
+
+</center>
+</body>
+</html>

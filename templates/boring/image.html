@@ -1,0 +1,60 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> <html>
+<head>
+	<title>Photoboxr - {{ item | e }}</title>
+	<link rel="stylesheet" href="res/common.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="generator" content="photoboxr {{ version }}" />
+	<meta charset="UTF-8" />
+	<script type='text/javascript' src='res/swipe.js'></script>
+	<script type='text/javascript'>
+		window.onload = function(e) {
+			console.log('onload');
+			{%- if next -%}
+			setCallback('right', "{{ next | e }}.html");
+			{% endif %}
+			{%- if prev -%}
+			setCallback('left', "{{ prev | e }}.html");
+			{% endif %}
+			{%- if up -%}
+			setCallback('up', "{{ up | e }}");
+			{% endif %}
+			callbacks['click'] = toggleSwipe;
+			installSwipeCallbacks('main_element_div');
+		}
+		document.addEventListener("DOMContentLoaded", function(event) {
+			 document.querySelectorAll('img').forEach(function(img){
+				img.onerror = function() {
+					this.src = 'res/album.png';
+				};
+			 })
+		});
+	</script>
+</head>
+
+<body>
+<center>
+<a class='button' href="{{ up | e }}">Up</a>
+{%- if prev -%}
+<a class='button' href="{{ prev | e }}.html">Prev</a>
+{%- else -%}
+<a class='button_disabled'>Prev</a>
+{% endif %}
+{%- if next -%}
+<a class='button' href="{{ next | e }}.html">Next</a>
+{%- else -%}
+<a class='button_disabled'>Next</a>
+{% endif %}
+<br/>
+<div id='main_element_div' style='margin-right: 10px;'>
+<img class='main_image' src="{{ item | e }}" alt='{{ item }}'>
+</div>
+<h1>{{ item }}</h1>
+
+<table class='metadata'>
+	{% for meta in metadata -%}
+	<tr><th>{{ meta }}</th><td>{{ metadata[meta] }}</td></tr>
+	{% endfor %}
+</table>
+</center>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> <html>
+<head>
+	<title>Photoboxr - {{ item }}</title>
+	<link rel="stylesheet" href="res/common.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="generator" content="photoboxr {{ version }}" />
+	<meta charset="UTF-8" />
+	<script type='text/javascript' src='res/swipe.js'></script>
+	<script type='text/javascript'>
+		document.onload = function() {
+			{% if next -%}
+			leftCallback = function() {
+				window.location = "{{ next | e }}.html";
+			};
+			{% endif %}
+			{% if prev -%}
+			rightCallback = function() {
+				window.location = "{{ prev | e }}.html";
+			};
+			{% endif %}
+			{% if up -%}
+			upCallback = function() {
+				window.location = "{{ up | e }}"
+			};
+			{% endif %}
+		}
+	</script>
+	
+</head>
+
+<body onload='initializeSwipe()'>
+<center>
+<a class='button' href="{{ up | e }}">Up</a>
+{% if prev -%}
+<a class='button' href="{{ prev | e }}.html">Prev</a>
+{% endif %}
+{% if next -%}
+<a class='button' href="{{ next | e }}.html">Next</a>
+{% endif %}
+<form name='swipe'><input type='checkbox' name='swipe_active' checked /></form>
+<br/>
+
+<div id='main_element_div' ontouchstart="touchStart(event,'main_element_div');"	ontouchend="touchEnd(event);" ontouchmove="touchMove(event);" ontouchcancel="touchCancel(event);" >
+
+<video width="320" height="240" controls>
+	<source src="{{ item | e }}" type="{{ metadata['content_type'] }}">
+	Your browser does not support the video tag.
+</video>
+
+</div>
+
+<h1>{{ item }}</h1>
+
+<table class='metadata'>
+	<tr><th>Format</th><td>{{ metadata['format']['format_long_name'] }}</td></tr>
+	<tr><th>Duration</th><td>{{ metadata['format']['duration'] }}</td></tr>
+	<tr><th>Size</th><td>{{ metadata['format']['size'] }}</td></tr>
+</table>
+
+<table class='metadata'>
+	<tr><th>Stream</th><th>CODEC</th></tr>
+	{% for stream in metadata['streams'] -%}
+	<tr><td>{{ stream['index'] }}</td><td>{{ stream['codec_long_name'] }}</td></tr>
+	{% endfor %}
+</table>
+
+</center>
+</body>
+</html>

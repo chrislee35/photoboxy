@@ -1,0 +1,8 @@
+build
+dist
+.spyproject
+*.pyc
+__pycache__
+*.code-workspace
+.conda
+tests/output/*

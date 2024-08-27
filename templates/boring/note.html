@@ -1,0 +1,61 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>Photoboxr - {{ item }}</title>
+	<link rel="stylesheet" href="res/common.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="generator" content="photoboxr {{ version }}" />
+	<meta charset="UTF-8" />
+  <script type='text/javascript' src='res/swipe.js'></script>
+  <script type='text/javascript'>
+    document.onload = function() {
+      {% if next -%}
+      leftCallback = function() {
+        window.location = "{{ next | e }}.html";
+      };
+      {% endif %}
+      {% if prev -%}
+      rightCallback = function() {
+        window.location = "{{ prev | e }}.html";
+      };
+      {% endif %}
+      {% if up -%}
+      upCallback = function() {
+        window.location = "{{ up | e }}"
+      };
+      {% endif %}
+    }
+  </script>
+</head>
+
+<body onload='initializeSwipe()'>
+<center>
+<a class='button' href="{{ up | e }}">Up</a>
+{% if prev -%}
+<a class='button' href="{{ prev | e }}.html">Prev</a>
+{%- else -%}
+<a class='button_disabled'>Prev</a>
+{% endif %}
+{% if next -%}
+<a class='button' href="{{ next | e }}.html">Next</a>
+{%- else -%}
+<a class='button_disabled'>Next</a>
+{% endif %}
+<br/>
+<div id='main_element_div' ontouchstart="touchStart(event,'main_element_div');"  ontouchend="touchEnd(event);" ontouchmove="touchMove(event);" ontouchcancel="touchCancel(event);" >
+</div>
+
+<h1>{{ item }}</h1>
+<a href="{{ item | e }}" alt='{{ item }}' class='button'>Download</a>
+<br/>
+<br/>
+<br/>
+<table class='metadata'>
+	<tr><th>Magic</th><td>{{ metadata['magic'] }}</td></tr>
+	<tr><th>Size</th><td>{{ metadata['stat'].st_size }}</td></tr>
+	<tr><th>Created</th><td>{{ metadata['stat'].st_ctime }}</td></tr>
+	<tr><th>Modified</th><td>{{ metadata['stat'].st_mtime }}</td></tr>
+</table>
+</center>
+</body>
+</html>
