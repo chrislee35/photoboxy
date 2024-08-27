@@ -11,7 +11,7 @@ def mtime(filename):
 class TemplateManager:
     @staticmethod
     def get_templates(scheme_name: str):
-        basedir = dirname(dirname(__file__))
+        basedir = dirname(__file__)
         if exists(f"{basedir}/templates/{scheme_name}"):
             templates = {}
             for x in ['folder', 'image', 'video', 'note']:
