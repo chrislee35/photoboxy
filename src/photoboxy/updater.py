@@ -38,7 +38,7 @@ class Updater:
         self.directory = Directory(fullpath, updater=self)
         self.pool = Pool()
 
-        self.print_stats_thread = Thread(target=self.print_stats_monitor)
+        self.print_stats_thread = Thread(target=self.print_stats_continuous)
         
     def _add_change(self, type, filename):
         self.stats['changed'][type] += 1
@@ -82,16 +82,55 @@ class Updater:
         self.db[filename] = json.dumps(data)
 
     def fork_proc(self, proc, args):
-        self.pool.fork_proc(proc, args)
+        self.pool.do_work(proc, args)
     
     def fork_cmd(self, cmd):
-        self.pool.fork_cmd(cmd)
+        self.pool.do_work(cmd)
 
     def print_stats_monitor(self):
         # TODO: figure out how to stop this if the user only wants to enumerate
         while self.state != 'generated':
             self.print_stats()
             time.sleep(1)
+
+    def print_stats_continuous(self):
+        print(f"State: {self.state}")
+        print( "           Folders        Images         Videos         Notes          Total")
+        last_len = 0
+        while self.state in ['initialized','enumerating']:
+            t = self.stats['total']
+            c = self.stats['changed']
+            tt = sum( [t['folder'], t['image'], t['video'], t['note']] )
+            ct = sum( [c['folder'], c['image'], c['video'], c['note']] )
+            folder = f"{t['folder']}/{c['folder']}"
+            image = f"{t['image']}/{c['image']}"
+            video = f"{t['video']}/{c['video']}"
+            note = f"{t['note']}/{c['note']}"
+            total = f"{tt}/{ct}"
+            if last_len > 0:
+                print("\b" * last_len, end="", flush=True)
+            line = f"Enumerated {folder:14s} {image:14s} {video:14s} {note:14s} {total:14s}"
+            last_len = len(line)
+            print(line, end="", flush=True)
+            time.sleep(1)
+        
+        print()
+        print( "            Folders   Images   Videos    Notes    Total")
+        last_len = 0
+        while self.state in ['generating']:
+            metric = self.stats['generated']
+            folder = metric['folder']
+            image = metric['image']
+            video = metric['video']
+            note = metric['note']
+            total = sum([folder, image, video, note])
+            if last_len > 0: print("\b" * last_len, end="", flush=True)
+            line = f"Generated  {folder : 8d} {image : 8d} {video : 8d} {note : 8d} {total : 8d}"
+            last_len = len(line)
+            print(line, end="", flush=True)
+            time.sleep(1)
+
+
 
     def print_stats(self):
         metric = self.stats['total']
@@ -102,7 +141,7 @@ class Updater:
         total = sum([folder, image, video, note])
 
         print(f"State: {self.state}")
-        print( "           Folders  Images  Videos   Notes     Total")
+        print( "           Folders  Images  Videos   Notes      Total")
         print(f"Enumerated {folder : 7d} {image : 7d} {video : 7d} {note : 7d} {total : 10d}")
         metric = self.stats['changed']
         folder = metric['folder']

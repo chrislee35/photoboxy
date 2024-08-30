@@ -8,6 +8,8 @@ from shutil import copyfile
 import json
 import os
 import time
+from subprocess import PIPE, Popen
+
 # function aliases
 exists = os.path.exists
 basename = os.path.basename
@@ -18,6 +20,46 @@ def mtime(filename: str) -> str:
     mt = os.stat(filename).st_mtime
     ts = time.gmtime(mt)
     return time.strftime("%Y-%m-%d %H:%M:%S UTC", ts)
+
+# Directories have
+#  * path
+#  * mtime
+#  * Files[]
+#  * Directories[]
+
+# Files have
+#  * path
+#  * mtime
+#  * sort_key (usually mtime or created_time)
+#  * Filetype
+#  * size
+
+# Filetype is one of
+#  * Note
+#  * Image
+#  * Video
+
+# Notes < File have
+#  * type
+
+# Images < File have
+#  * created_time (sometimes)
+#  * exif_metadata
+#  * image_size
+#  * format (e.g., jpeg)
+
+# Videos < File have
+#  * created_time (sometimes)
+#  * video_metadata
+#  * video_run_time
+#  * format
+
+# to determine if we need to update the thumbnail, file webpage, and/or the index webpage
+# if the source mtime is greater than the dest mtime, create thumbnail and file webpage
+# if the previous or next file is changed, recreate the file webpage
+# if the template was updated, recreate the file webpage
+# if files were added, removed, or resorted update the index
+# if the template was updated, recreate the index
 
 class FileItem:
     def __init__(self, fullpath: str, relpath: str, updater: object):
@@ -184,8 +226,9 @@ class Video(FileItem):
         if not exists(thumbfile):
             self.changed = True
         if self.changed:
-            with os.popen(f'ffprobe -v error -show_format -show_streams -of json "{self.path}"') as fh:
-                ffprobe_json_raw = fh.read()
+            with Popen(['/usr/bin/ffprobe', '-v', 'error', '-show_format', '-show_streams', '-of', 'json', self.path], stdout=PIPE, stderr=None) as p:
+                ffprobe_json_raw = p.stdout.read()
+
             self.metadata = json.loads(ffprobe_json_raw)
             if self.metadata.get('format') is None:
                 self.metadata = { 'format': {'format_long_name': 'unknown', 'duration': 'unknown', 'size': 'unknown' }, 'streams': [] }
@@ -196,6 +239,9 @@ class Video(FileItem):
                 self.metadata['content_type'] = 'video/mp4'
             elif self.basename.lower().endswith('.ogg'):
                 self.metadata['content_type'] = 'video/ogg'
+            elif self.basename.lower().endswith('.mov'):
+                self.metadata['content_type'] = 'video/mp4'
+                self.basename += '.mp4'
 
             if self.metadata.get('tags') and self.metadata['tags'].get('creation_time'):
                 t = self.metadata['tags'].get('creation_time').split('.',1)[0]
@@ -211,19 +257,21 @@ class Video(FileItem):
 
     def generate_thumbnail(self, dest_dir: str):
         thumbnail_file = f"{dest_dir}/thumb/{self.thumbname}"
-        cmd = f'ffmpeg -i "{self.path}" -vcodec mjpeg -vframes 1 -an -f rawvideo -s 100x100 -y "{thumbnail_file}"'
+        cmd = f'ffmpeg -i "{self.path}" -hide_banner -loglevel quiet -vcodec mjpeg -vframes 1 -an -f rawvideo -s 100x100 -y "{thumbnail_file}"'
         self.myfork(cmd)
 
     def generate_item(self, dest_dir: str):
         outfile = f"{dest_dir}/{self.basename}"
         # (mov|avi|flv|mp4|m4v|mpeg|mpg|webm|ogv)
+        cmd = None
         if self.basename.lower().endswith('.webm'):
-            cmd = f'ffmpeg -i "{self.path}" -vcodec libvpx -acodec libvorbis -qmax 25 -y "{outfile}"'
+            cmd = f'ffmpeg -i "{self.path}" -hide_banner -loglevel quiet -vcodec libvpx -acodec libvorbis -qmax 25 -y "{outfile}"'
         elif self.basename.lower().endswith('.mp4'):
-            cmd = f'ffmpeg -i "{self.path}" -c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k -movflags +faststart -vf scale=-2:720,format=yuv420p -y "{outfile}"'
+            cmd = f'ffmpeg -i "{self.path}" -hide_banner -loglevel quiet -c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k -movflags +faststart -vf scale=-2:720,format=yuv420p -y "{outfile}"'
         elif self.basename.lower().endswith('.ogv'):
-            cmd = f'ffmpeg -i "{self.path}" -c:v libx264 -preset veryslow -crf 22 -c:a aac -b:a 128k -strict -2 -y "{outfile}"'
-        self.myfork(cmd)
+            cmd = f'ffmpeg -i "{self.path}" -hide_banner -loglevel quiet -c:v libx264 -preset veryslow -crf 22 -c:a aac -b:a 128k -strict -2 -y "{outfile}"'
+        if cmd:
+            self.myfork(cmd)
 
 class Note(FileItem):
     def __init__(self, fullpath: str, relpath: str, updater: object):

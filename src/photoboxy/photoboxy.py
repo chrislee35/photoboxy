@@ -1,48 +1,4 @@
 # -*- coding: utf-8 -*-
-# Directories have
-#  * path
-#  * mtime
-#  * Files[]
-#  * Directories[]
-
-# Files have
-#  * path
-#  * mtime
-#  * sort_key (usually mtime or created_time)
-#  * Filetype
-#  * size
-
-# Filetype is one of
-#  * Note
-#  * Image
-#  * Video
-
-# Notes < File have
-#  * type
-
-# Images < File have
-#  * created_time (sometimes)
-#  * exif_metadata
-#  * image_size
-#  * format (e.g., jpeg)
-
-# Videos < File have
-#  * created_time (sometimes)
-#  * video_metadata
-#  * video_run_time
-#  * format
-
-# to determine if we need to update the thumbnail, file webpage, and/or the index webpage
-# if the source mtime is greater than the dest mtime, create thumbnail and file webpage
-# if the previous or next file is changed, recreate the file webpage
-# if the template was updated, recreate the file webpage
-# if files were added, removed, or resorted update the index
-# if the template was updated, recreate the index
-
-
-#from multiprocessing.pool import Pool, AsyncResult
-#from multiprocessing import Process
-
 VERSION = "0.0.1"
 debug = True
 
