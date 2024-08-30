@@ -147,37 +147,41 @@ class Image(FileItem):
 
 
     def resize(self, source: str, dest: str, width: int, height: int = None, fill: bool = False, gravity = 'center'):
-        image = PILImage.open(source)
-        if not height: height = width
-        if fill:
-            scale = max([ width / image.width, height / image.height ])
-        else:
-            scale = min([ width / image.width, height / image.height ])
+        try:
+            image = PILImage.open(source)
+            if not height: height = width
+            if fill:
+                scale = max([ width / image.width, height / image.height ])
+            else:
+                scale = min([ width / image.width, height / image.height ])
 
-        resized = image.resize(size=(int(scale * image.width + 0.5), int(scale * image.height + 0.5)))
-        
-        if not fill: 
-            resized.save(dest)
-            return
+            resized = image.resize(size=(int(scale * image.width + 0.5), int(scale * image.height + 0.5)))
+            
+            if not fill: 
+                resized.save(dest)
+                return
 
-        if gravity == "top_left":
-            box = [0, 0, width, height]
-        elif gravity == "top_right":
-            shift_right = resized.width - width
-            box = [shift_right, 0, width + shift_right, height]
-        elif gravity == "bottom_left":
-            shift_top =  resized.height - height
-            box = [0, shift_top, width, height + shift_top]
-        elif gravity == "bottom_right":
-            shift_right = resized.width - width
-            shift_top =  resized.height - height
-            box = [shift_right, shift_top, shift_right+width, height + shift_top]
-        elif gravity == "center":
-            shift_right = (resized.width - width) // 2
-            shift_top = (resized.height - height) // 2
-            box = [shift_right, shift_top, shift_right+width, height + shift_top]
-        cropped = resized.crop(box=box)
-        cropped.save(dest)
+            if gravity == "top_left":
+                box = [0, 0, width, height]
+            elif gravity == "top_right":
+                shift_right = resized.width - width
+                box = [shift_right, 0, width + shift_right, height]
+            elif gravity == "bottom_left":
+                shift_top =  resized.height - height
+                box = [0, shift_top, width, height + shift_top]
+            elif gravity == "bottom_right":
+                shift_right = resized.width - width
+                shift_top =  resized.height - height
+                box = [shift_right, shift_top, shift_right+width, height + shift_top]
+            elif gravity == "center":
+                shift_right = (resized.width - width) // 2
+                shift_top = (resized.height - height) // 2
+                box = [shift_right, shift_top, shift_right+width, height + shift_top]
+            cropped = resized.crop(box=box)
+            cropped.save(dest)
+        except OSError as e:
+            print()
+            print(f"Error for {self.path}: {e}")
 
     def resize_background(self, source: str, dest: str, size: int, fill: bool = False):
         self.updater.fork_proc(self.resize, (source, dest, size, size, fill))

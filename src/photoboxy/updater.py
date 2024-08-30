@@ -130,8 +130,6 @@ class Updater:
             print(line, end="", flush=True)
             time.sleep(1)
 
-
-
     def print_stats(self):
         metric = self.stats['total']
         folder = metric['folder']

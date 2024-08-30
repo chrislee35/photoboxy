@@ -9,7 +9,7 @@
 
 <body>
 {% for parent in parents -%}
-<a class='button' href='{{ parent.link }}'>{{ parent.folder }}</a>
+<a class='button{% if parent.disabled %} button_disabled{% endif %}' href='{{ parent.link }}'>{{ parent.folder }}</a>
 {% endfor %}
 <center>
 

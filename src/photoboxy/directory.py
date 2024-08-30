@@ -12,7 +12,7 @@ def rreplace(string: str, find: str, replacement: str, count: int = 1):
     return replacement.join(string.rsplit(find, count))
 
 class Directory:
-    excludes = ( 'albumfiles.txt', 'comments.properties', 'meta.properties', 'photoboxr.dbm', 'photoboxr.dbm.pag', 'photoboxr.dbm.dir' )
+    excludes = ( '.jalbum', 'albumfiles.txt', 'comments.properties', 'meta.properties', 'photoboxr.dbm', 'photoboxr.dbm.pag', 'photoboxr.dbm.dir' )
 
     def __init__(self, fullpath, relpath='', updater: any = None):
         self.path = fullpath
@@ -43,6 +43,11 @@ class Directory:
                     if l.startswith('-'):
                         fn = l.split('\t')[0][1:]
                         exclude.add(fn)
+
+
+        # check for other reasons to update
+        if not exists(f"{updater.dest_dir}/{self.relpath}/index.html"):
+            self.changed = True
 
         video_exts = ('.mov', '.avi', '.flv', '.mp4', '.mpeg', '.mpg', '.webm', '.ogg')
         photo_exts = ('.jpg', '.gif', '.jpeg', '.png', '.tif', '.tiff', '.svg', '.bmp')
@@ -174,17 +179,19 @@ class Directory:
 
         # then we need to (re)create the index.html
         # first, calculate all the parent folder links
-        parts = self.relpath.split("/")
-        if len(parts) == 1:
-            parents = [ {'folder': 'Home', 'link': "index.html"} ]
+        parts = self.relpath.rstrip('/').split("/")
+        if len(parts) == 0:
+            parents = [ {'folder': 'Home', 'link': "javascript:void(0)", 'disabled': True} ]
         else:
             parents = \
                 [
-                    {'folder': 'Home', 'link': ("../" * len(parts)) + "index.html"}
+                    {'folder': 'Home', 'link': ("../" * len(parts)) + "index.html", 'disabled': False}
                 ] + [
-                    {'folder': folder, 'link': ("../" * (len(parts) - index - 1)) + "index.html" } 
-                    for index, folder in enumerate(parts[0:-1])
+                    {'folder': folder, 'link': ("../" * (len(parts) - (index + 1))) + "index.html", 'disabled': False} 
+                    for index, folder in enumerate(parts)
                 ]
+            parents[-1]['link'] = "javascript:void(0)"
+            parents[-1]['disabled'] = True
         
         html = templates[self.type].render(item=self.relpath, parents=parents, subdirs=self.subdirs, files=self.files, version=VERSION)
         with open(f"{dest_dir}/index.html", "w") as of:
