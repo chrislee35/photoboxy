@@ -12,7 +12,7 @@ def rreplace(string: str, find: str, replacement: str, count: int = 1):
     return replacement.join(string.rsplit(find, count))
 
 class Directory:
-    excludes = ( '.jalbum', 'albumfiles.txt', 'comments.properties', 'meta.properties', 'photoboxr.dbm', 'photoboxr.dbm.pag', 'photoboxr.dbm.dir' )
+    excludes = ( 'albumfiles.txt', 'comments.properties', 'meta.properties', 'photoboxr.dbm', 'photoboxr.dbm.pag', 'photoboxr.dbm.dir' )
 
     def __init__(self, fullpath, relpath='', updater: any = None):
         self.path = fullpath
@@ -56,6 +56,7 @@ class Directory:
         for f in os.scandir(self.path):
             if f.name in exclude: continue
             if f.name in Directory.excludes: continue
+            if f.name.startswith('.'): continue
             
             item_path = f"{self.path}/{f.name}"
             if f.is_dir():

@@ -31,15 +31,15 @@
 <body onload='initializeSwipe()'>
 <center>
 <a class='button' href="{{ up | e }}">Up</a>
-{% if prev -%}
+{%- if prev -%}
 <a class='button' href="{{ prev | e }}.html">Prev</a>
 {%- else -%}
-<a class='button_disabled'>Prev</a>
+<a class='button button_disabled'>Prev</a>
 {% endif %}
-{% if next -%}
+{%- if next -%}
 <a class='button' href="{{ next | e }}.html">Next</a>
 {%- else -%}
-<a class='button_disabled'>Next</a>
+<a class='button button_disabled'>Next</a>
 {% endif %}
 <br/>
 <div id='main_element_div' ontouchstart="touchStart(event,'main_element_div');"  ontouchend="touchEnd(event);" ontouchmove="touchMove(event);" ontouchcancel="touchCancel(event);" >
