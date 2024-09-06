@@ -26,7 +26,7 @@ class Directory:
         self.image = "res/album.png"
         self.files = []
         self.subdirs = []
-        self.changed = True
+        self.changed = False
 
     def enumerate(self, updater):
         comments = {}
