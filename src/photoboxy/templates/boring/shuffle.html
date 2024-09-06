@@ -1,0 +1,85 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> <html>
+<head>
+	<title>Photoboxy - Shuffle</title>
+	<link rel="stylesheet" href="res/common.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="generator" content="photoboxy {{ version }}" />
+	<meta charset="UTF-8" />
+	<script type='text/javascript' src='res/swipe.js'></script>
+	<script type='text/javascript'>
+        var image_array = {{ image_array }};
+        // Then shuffle the array
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        var index = 0;
+
+        function next_image() {
+            // update the image url
+            document.getElementById('slideshow_image').src = image_array[index]['path'];
+            // update the folder info
+            document.getElementById('image_folder').innerHTML = image_array[index]['folder'];
+            // update the date info
+            document.getElementById('image_date').innerHTML = image_array[index]['date'];
+            index++;
+            if(index == image_array.length) { index = 0; }
+        }
+        
+        window.onload = function(e) {
+            shuffleArray(image_array);
+            next_image();
+            // call next_image every 5 seconds
+            setInterval(next_image, 5000);
+		//	setCallback('right', "{{ next | e }}.html");
+		//	setCallback('left', "{{ prev | e }}.html");
+		//	installSwipeCallbacks('main_element_div');
+		}
+		
+	</script>
+    <style type="text/css">
+        #slideshow_image {
+            max-height: 99vh;
+            max-width: 95vw;
+        }
+        #image_folder {
+            position: absolute;
+            bottom: 34px;
+            left: 10px;
+            font-size: 18pt;
+            color: #69cdff;
+            text-shadow: 1px 1px 2px #000;
+            font-family: monospace;
+            font-weight: bold;
+            font-variant: small-caps;
+            background-color: #0000008f;
+            text-align: center;
+            width: -moz-available;
+        }
+        #image_date {
+            position: absolute;
+            bottom: 5px;
+            left: 10px;
+            font-size: 18pt;
+            color: #69cdff;
+            text-shadow: 1px 1px 2px #000;
+            font-family: monospace;
+            font-weight: bold;
+            font-variant: small-caps;
+            background-color: #0000008f;
+            text-align: center;
+            width: -moz-available;
+        }
+    </style>
+</head>
+
+<body>
+<div id='main_element_div' style='margin-right: 10px;'>
+    <center><img id='slideshow_image' src=""></center>
+    <div id='image_folder'></div>
+    <div id='image_date'></div>
+</div>
+</body>
+</html>

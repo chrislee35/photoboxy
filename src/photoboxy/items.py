@@ -2,6 +2,7 @@ from .photoboxy import VERSION
 from .pool import Pool
 
 from PIL import Image as PILImage
+from PIL import ImageOps
 from PIL.ExifTags import TAGS
 from shutil import copyfile
 
@@ -134,7 +135,10 @@ class Image(FileItem):
         thumbfile = f"{updater.dest_dir}/{relpath}/thumb/{self.thumbname}".replace('//', '/')
         if not exists(thumbfile):
             self.changed = True
-        
+        destfile = f"{updater.dest_dir}/{relpath}/{self.basename}"
+        if not exists(destfile):
+            self.changed = True
+
         if self.changed:
             self.generate_metadata()
             data = {
@@ -149,6 +153,8 @@ class Image(FileItem):
     def resize(self, source: str, dest: str, width: int, height: int = None, fill: bool = False, gravity = 'center'):
         try:
             image = PILImage.open(source)
+            image = ImageOps.exif_transpose(image)
+
             if not height: height = width
             if fill:
                 scale = max([ width / image.width, height / image.height ])
@@ -156,7 +162,7 @@ class Image(FileItem):
                 scale = min([ width / image.width, height / image.height ])
 
             resized = image.resize(size=(int(scale * image.width + 0.5), int(scale * image.height + 0.5)))
-            
+
             if not fill: 
                 resized.save(dest)
                 return
@@ -225,10 +231,16 @@ class Video(FileItem):
     def __init__(self, fullpath: str, relpath: str, updater: object):
         FileItem.__init__(self, fullpath, relpath, updater)
         self.type = 'video'
+        self.basename = self.basename.rsplit('.', 1)[0]+'.webm'
         self.thumbname = f"{self.basename}.jpg"
         thumbfile = f"{updater.dest_dir}/{relpath}/thumb/{self.thumbname}".replace('//', '/')
         if not exists(thumbfile):
             self.changed = True
+
+        destfile = f"{updater.dest_dir}/{relpath}/{self.basename}"
+        if not exists(destfile):
+            self.changed = True
+
         if self.changed:
             with Popen(['/usr/bin/ffprobe', '-v', 'error', '-show_format', '-show_streams', '-of', 'json', self.path], stdout=PIPE, stderr=None) as p:
                 ffprobe_json_raw = p.stdout.read()
@@ -237,15 +249,7 @@ class Video(FileItem):
             if self.metadata.get('format') is None:
                 self.metadata = { 'format': {'format_long_name': 'unknown', 'duration': 'unknown', 'size': 'unknown' }, 'streams': [] }
             
-            if self.basename.lower().endswith('.webm'):
-                self.metadata['content_type'] = 'video/webm'
-            elif self.basename.lower().endswith('.mp4'):
-                self.metadata['content_type'] = 'video/mp4'
-            elif self.basename.lower().endswith('.ogg'):
-                self.metadata['content_type'] = 'video/ogg'
-            elif self.basename.lower().endswith('.mov'):
-                self.metadata['content_type'] = 'video/mp4'
-                self.basename += '.mp4'
+            self.metadata['content_type'] = 'video/webm'
 
             if self.metadata.get('tags') and self.metadata['tags'].get('creation_time'):
                 t = self.metadata['tags'].get('creation_time').split('.',1)[0]
@@ -267,15 +271,8 @@ class Video(FileItem):
     def generate_item(self, dest_dir: str):
         outfile = f"{dest_dir}/{self.basename}"
         # (mov|avi|flv|mp4|m4v|mpeg|mpg|webm|ogv)
-        cmd = None
-        if self.basename.lower().endswith('.webm'):
-            cmd = f'ffmpeg -i "{self.path}" -hide_banner -loglevel quiet -vcodec libvpx -acodec libvorbis -qmax 25 -y "{outfile}"'
-        elif self.basename.lower().endswith('.mp4'):
-            cmd = f'ffmpeg -i "{self.path}" -hide_banner -loglevel quiet -c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k -movflags +faststart -vf scale=-2:720,format=yuv420p -y "{outfile}"'
-        elif self.basename.lower().endswith('.ogv'):
-            cmd = f'ffmpeg -i "{self.path}" -hide_banner -loglevel quiet -c:v libx264 -preset veryslow -crf 22 -c:a aac -b:a 128k -strict -2 -y "{outfile}"'
-        if cmd:
-            self.myfork(cmd)
+        cmd = f'ffmpeg -i "{self.path}" -hide_banner -loglevel quiet -vcodec libvpx -cpu-used -5 -deadline realtime -y "{outfile}"'
+        self.myfork(cmd)
 
 class Note(FileItem):
     def __init__(self, fullpath: str, relpath: str, updater: object):

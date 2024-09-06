@@ -1,4 +1,6 @@
+import json
 import os
+import shutil
 # function aliases
 exists = os.path.exists
 basename = os.path.basename
@@ -12,7 +14,7 @@ def rreplace(string: str, find: str, replacement: str, count: int = 1):
     return replacement.join(string.rsplit(find, count))
 
 class Directory:
-    excludes = ( 'albumfiles.txt', 'comments.properties', 'meta.properties', 'photoboxr.dbm', 'photoboxr.dbm.pag', 'photoboxr.dbm.dir' )
+    excludes = ( 'albumfiles.txt', 'comments.properties', 'meta.properties', 'photoboxy.dbm', 'photoboxy.dbm.pag', 'photoboxy.dbm.dir' )
 
     def __init__(self, fullpath, relpath='', updater: any = None):
         self.path = fullpath
@@ -24,7 +26,7 @@ class Directory:
         self.image = "res/album.png"
         self.files = []
         self.subdirs = []
-        self.changed = False
+        self.changed = True
 
     def enumerate(self, updater):
         comments = {}
@@ -131,7 +133,7 @@ class Directory:
                     if l.startswith('folderIcon='):
                         thumbnail = l.strip().split('=',1)[1]
                         if thumbnail.lower().endswith('.jpg'):
-                            self.image = "thumb/{thumbnail}"
+                            self.image = f"thumb/{thumbnail}"
                             return self.image
                         else:
                             for subdir in self.subdirs:
@@ -198,6 +200,7 @@ class Directory:
         with open(f"{dest_dir}/index.html", "w") as of:
             of.write(html)
 
+        self.generate_shuffle(templates, dest_dir)
         self.updater._add_generated('folder')
 
         for f in self.files:
@@ -205,6 +208,7 @@ class Directory:
 
         for s in self.subdirs:
             s.generate(templates, f"{dest_dir}/{s.basename}")
+
 
     def update_template(self, templates: dict, dest_dir: str):
         self.subdirs.sort(key=lambda x: x.basename)
@@ -248,3 +252,26 @@ class Directory:
 
         for s in self.subdirs:
             s.update_template(templates, f"{dest_dir}/{s.basename}")
+
+    def generate_shuffle(self, templates: dict, dest_dir: str):
+        # enumerate all the images in this folder and below
+        images = self.get_images_recursive()
+        # get the relpath, date, and folder for each image
+        rpl = len(self.relpath)
+        image_array = []
+        for image in images:
+            relpath = (image.relpath[rpl:].strip('/')+'/'+image.basename).strip('/')
+            folder = os.path.dirname(relpath)
+            date = image.mtime.split(' ')[0]
+            image_array.append({'path': relpath, 'folder': folder, 'date': date})
+
+        image_array_str = json.dumps(image_array)
+        html = templates['shuffle'].render(image_array=image_array_str, version=VERSION)
+        with open(f"{dest_dir}/shuffle.html", "w") as of:
+            of.write(html)
+
+    def get_images_recursive(self):
+        images = [img for img in self.files if isinstance(img, Image)]
+        for s in self.subdirs:
+            images += s.get_images_recursive()
+        return images

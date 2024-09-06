@@ -7,7 +7,7 @@ from multiprocessing import Process
 # by default it will use os.cpu_count() as the number of workers
 class Pool:
     def __init__(self, count=None):
-        self.count = count or os.cpu_count()
+        self.count = 2 #count or os.cpu_count()
         self.children: list[Process] = []
 
     def wait_for_availability(self):
@@ -25,7 +25,8 @@ class Pool:
             self.do_proc(cmd_or_proc, args)
     
     def cmd_wrapper(self, cmd):
-        Popen(cmd, shell=True)
+        p = Popen(cmd, shell=True)
+        p.wait()
 
     def do_proc(self, proc, args=None):
         if args:
