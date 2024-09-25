@@ -20,5 +20,6 @@ def generate_album(
             exit()
     u = Updater(source_dir, dest_dir)
     u.enumerate()
+    u.cluster()
     u.generate(dest_dir, template_name=template)
     u.print_stats()

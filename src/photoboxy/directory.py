@@ -14,7 +14,7 @@ def rreplace(string: str, find: str, replacement: str, count: int = 1):
     return replacement.join(string.rsplit(find, count))
 
 class Directory:
-    excludes = ( 'albumfiles.txt', 'comments.properties', 'meta.properties', 'photoboxy.dbm', 'photoboxy.dbm.pag', 'photoboxy.dbm.dir' )
+    excludes = ( 'albumfiles.txt', 'comments.properties', 'meta.properties' )
 
     def __init__(self, fullpath, relpath='', updater: any = None):
         self.path = fullpath
@@ -53,7 +53,7 @@ class Directory:
 
         video_exts = ('.mov', '.avi', '.flv', '.mp4', '.mpeg', '.mpg', '.webm', '.ogg')
         photo_exts = ('.jpg', '.gif', '.jpeg', '.png', '.tif', '.tiff', '.svg', '.bmp')
-        doc_exts = ('.txt', '.rtf', '.doc', '.docx', '.pdf')
+        doc_exts = ('.txt', '.doc', '.docx', '.pdf', '.odt')
 
         for f in os.scandir(self.path):
             if f.name in exclude: continue

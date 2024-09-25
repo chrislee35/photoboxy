@@ -1,4 +1,5 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> <html>
+<!DOCTYPE html> 
+<html lang="en">
 <head>
 	<title>Photoboxy - {{ item | e }}</title>
 	<link rel="stylesheet" href="res/common.css" />
@@ -6,6 +7,7 @@
 	<meta name="generator" content="photoboxy {{ version }}" />
 	<meta charset="UTF-8" />
 	<script type='text/javascript' src='res/swipe.js'></script>
+	<script type="text/javascript" src="{{cluster_rel}}/names.js"></script>
 	<script type='text/javascript'>
 		window.onload = function(e) {
 			console.log('onload');
@@ -22,11 +24,19 @@
 			installSwipeCallbacks('main_element_div');
 		}
 		document.addEventListener("DOMContentLoaded", function(event) {
-			 document.querySelectorAll('img').forEach(function(img){
+			document.querySelectorAll('img').forEach(function(img){
 				img.onerror = function() {
 					this.src = 'res/album.png';
 				};
-			 })
+			});
+			var areas = document.getElementsByTagName('area');
+			for(var i=0; i < areas.length; i++) {
+				var area = areas[i];
+				var face_id = area.alt;
+				if(names[face_id]) {
+					area.title = names[face_id];
+				}
+			};
 		});
 	</script>
 </head>
@@ -46,7 +56,14 @@
 {% endif %}
 <br/>
 <div id='main_element_div' style='margin-right: 10px;'>
-<img class='main_image' src="{{ item | e }}" alt='{{ item }}'>
+<img class='main_image' src="{{ item | e }}" alt='{{ item }}' usemap="#clusters" />
+{% if clusters -%}
+<map name="clusters">
+{% for cluster in clusters -%}
+	<area shape="rect" coords="{{cluster.bbox}}" href="{{cluster_rel}}/{{cluster.cluster_id}}.html" alt="{{cluster.cluster_id}}" title="Face ID {{cluster.cluster_id}}" />
+{% endfor %}
+</map>
+{% endif %}
 </div>
 
 <h1>{{ item }}</h1>

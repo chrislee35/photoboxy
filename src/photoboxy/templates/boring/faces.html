@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Photoboxy - {{ item | e }}</title>
+	<link rel="stylesheet" href="res/common.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="generator" content="photoboxy {{ version }}" />
+	<meta charset="UTF-8" />
+	<script type='text/javascript' src='names.js'></script>
+	<script type='text/javascript'>
+		document.addEventListener("DOMContentLoaded", function(event) {
+			document.querySelectorAll('img').forEach(function(img){
+				img.onerror = function() {
+					this.src = 'res/album.png';
+				};
+			})
+			var myid = document.getElementById('name').innerText;
+            if(names[myid]) {
+                document.getElementById('name').innerText = names[myid];
+            }
+		});
+	</script>
+</head>
+
+<body>
+<a class="button" href="../index.html">Home</a>
+{%- if prev -%}
+<a class='button' href="{{ prev | e }}.html">Prev</a>
+{%- else -%}
+<a class='button button_disabled'>Prev</a>
+{% endif %}
+{%- if next -%}
+<a class='button' href="{{ next | e }}.html">Next</a>
+{%- else -%}
+<a class='button button_disabled'>Next</a>
+{% endif %}
+<br/>
+
+<h1 id="name">{{ face_id }}</h1>
+
+{% if images -%}
+<div id='images' class='box'>
+	{% for image in images -%}
+	<div class='image'>
+		<a href="{{image.webpage}}">
+			<img src="{{image.thumbnail}}" />
+		</a>
+	</div>
+	{% endfor %}
+</div>
+<br/>
+{% endif %}
+
+</body>
+</html>

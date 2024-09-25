@@ -1,13 +1,19 @@
-import dbm
+import diskcache
 import json
-import time
+import os
 import shutil
+import time
 from .directory import Directory
 from .template_manager import TemplateManager
 from .pool import Pool
+from .cluster import Embedder, Clusterer
 from threading import Thread
 
 class Updater:
+    # through away clusters that don't have enough images to make them worth while
+    # i.e., the face cluster must appear in at least {CLUSTER_THRESHOLD} images to be considered
+    CLUSTER_THRESHOLD = 3
+
     def __init__(self, fullpath, dest_dir):
         self.stats = {
             'total': {
@@ -36,9 +42,12 @@ class Updater:
         self.state = 'initialized'
 
         # open or create database in read/write mode with synchronization on writes
-        self.db = dbm.open(dest_dir+'/photoboxy.dbm', 'c', 0o666)
+        self.db = diskcache.Index(dest_dir+'/.db')
+        
         self.directory = Directory(fullpath, updater=self)
         self.pool = Pool()
+        self.embedder = Embedder()
+        self.clusterer = Clusterer()
 
         self.print_stats_thread = Thread(target=self.print_stats_continuous)
         self.timestamps = {
@@ -69,6 +78,33 @@ class Updater:
         self.directory.enumerate(self)
         self.state = 'enumerated'
         self.timestamps['enum_e'] = time.time()
+
+    def embed(self, img):
+        return self.embedder.embed(img)
+
+    def cluster(self):
+        self.state = 'clustering'
+        self.timestamps['cluster_s'] = time.time()
+        bboxes = []
+        embeddings = []
+        filenames = []
+        # for every file in the database, not just those that were updated
+        for filename in self.db.keys():
+            # get the data
+            data = self.get_data(filename)
+            # see if the file has embeddings, this test is cheaper than testing if the file still exists
+            if 'metadata' not in data: continue
+            if 'embeddings' not in data['metadata']: continue
+            # make sure that the source still exists
+            if not os.path.exists(filename): continue
+            # put each embedding, since an image can have multiple faces, into an embeddings list
+            # keep the filename and bounding box in a list so that we can join the answer back into the metadata
+            for embed in data['metadata']['embeddings']:
+                filenames.append(filename)
+                embeddings.append(embed['embed'])
+                bboxes.append(embed['bbox'])
+        # run the clustering algorithm
+        self.clusterer.cluster(filenames, bboxes, embeddings, Updater.CLUSTER_THRESHOLD)
     
     def generate(self, dest_dir, template_name='boring'):
         self.state = 'generating'
@@ -76,6 +112,9 @@ class Updater:
         templates = TemplateManager.get_templates(template_name)
         self.directory.generate(templates, dest_dir)
         self.pool.waitall()
+        # the clusterer needs to know the source dir so that it can rewrite the filenames
+        # into relative urls for the images and thumbnails
+        self.clusterer.generate(templates, dest_dir, self.source_dir)
         self.state = 'generated'
         self.timestamps['gen_e'] = time.time()
         self.print_stats_thread.join()
@@ -135,6 +174,18 @@ class Updater:
             print(line, end="", flush=True)
             time.sleep(1)
         
+        print()
+        print("Clustering")
+        
+        l = 0
+        while self.state in ['clustering']:
+            print(".", end="", flush=True)
+            l += 1
+            if l == 10:
+                print(("\b" * 10)+(" " * 10)+("\b" * 10), end="", flush=True)
+                l = 0
+            time.sleep(0.5)
+
         print()
         print( "            Folders   Images   Videos    Notes    Total")
         last_len = 0

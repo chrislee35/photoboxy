@@ -5,11 +5,10 @@ from PIL import Image as PILImage
 from PIL import ImageOps
 from PIL.ExifTags import TAGS
 from shutil import copyfile
-
 import json
 import os
 import time
-from subprocess import PIPE, Popen
+from subprocess import PIPE, Popen, run
 
 # function aliases
 exists = os.path.exists
@@ -74,6 +73,7 @@ class FileItem:
         self.size = filesize(fullpath)
         self.metadata = {}
         self.changed = True
+        self.htmlonly = False
         self.type = 'unknown'
         data = updater.get_data(fullpath)
         if data and data['mtime'] == self.mtime and data['size'] == self.size:
@@ -111,7 +111,29 @@ class FileItem:
         prev_destname = None
         if self.n: next_destname = self.n.basename
         if self.p: prev_destname = self.p.basename
-        html = template.render(up='index.html', item=self.basename, next=next_destname, prev=prev_destname, metadata=self.metadata, version=VERSION)
+        # get the clusters
+        clusters = self.updater.clusterer.get_clusters(self.path)
+        # rescale and convert the bounding box to integers, then make it a string with a comma between each coordinate
+        if clusters and 'scale' in self.metadata:
+            r = self.metadata['scale']
+            for cluster in clusters:
+                cluster['bbox'] = ",".join([str(int(x*r)) for x in cluster['bbox']])
+        if 'embeddings' in self.metadata:
+            self.metadata.pop('embeddings')
+
+        # we need to calculate the relative path to the root, remember that the faces directory may not exist yet.
+        cluster_rel = ('../' * self.relpath.count('/'))+'_faces'
+        # generate the html
+        html = template.render(
+            up='index.html',
+            item=self.basename,
+            next=next_destname,
+            prev=prev_destname,
+            metadata=self.metadata,
+            cluster_rel=cluster_rel,
+            clusters=clusters,
+            version=VERSION
+        )
         htmlfile = f"{dest_dir}/{self.basename}.html"
         with open(htmlfile, "w") as fh:
             fh.write(html)
@@ -148,6 +170,14 @@ class Image(FileItem):
                 'metadata': self.metadata
             }
             updater.set_data(fullpath, data)
+
+        # we may have all the images created and the metadata is already good, but we are missing the html file
+        # recreate it
+        desthtmlfile = f"{updater.dest_dir}/{relpath}/{self.basename}.html"
+        if not exists(desthtmlfile):
+            # set htmlonly only if this is the only reason to set the changed flag
+            self.htmlonly = not self.changed
+            self.changed = True
 
 
     def resize(self, source: str, dest: str, width: int, height: int = None, fill: bool = False, gravity = 'center'):
@@ -193,10 +223,12 @@ class Image(FileItem):
         self.updater.fork_proc(self.resize, (source, dest, size, size, fill))
 
     def generate_thumbnail(self, dest_dir: str):
+        if self.htmlonly: return
         imgfile = f"{dest_dir}/thumb/{self.thumbname}"
         self.resize_background(self.path, imgfile, 100, fill=True)
 
     def generate_item(self, dest_dir):
+        if self.htmlonly: return
         imgfile = f"{dest_dir}/{self.basename}"
         if imgfile.lower().endswith('.svg'):
             try:
@@ -213,6 +245,10 @@ class Image(FileItem):
         m['width'] = img.width
         m['height'] = img.height
         m['size'] = os.stat(self.path).st_size
+        m['embeddings'] = self.updater.embed(img)
+        # keep track of the rescaling ratio so that we can recalculate the bounding boxes
+        # that are given by with the clusterer
+        m['scale'] = min([ 800 / img.width, 800 / img.height ])
 
         exifdata = img.getexif()
         for tag_id in exifdata:
@@ -226,6 +262,7 @@ class Image(FileItem):
                 m[tag] = data
             except Exception:
                 pass
+
 
 class Video(FileItem):
     def __init__(self, fullpath: str, relpath: str, updater: object):
@@ -263,12 +300,22 @@ class Video(FileItem):
             }
             updater.set_data(fullpath, data)
 
+        # we may have all the images created and the metadata is already good, but we are missing the html file
+        # recreate it
+        desthtmlfile = f"{updater.dest_dir}/{relpath}/{self.basename}.html"
+        if not exists(desthtmlfile):
+            # set htmlonly only if this is the only reason to set the changed flag
+            self.htmlonly = not self.changed
+            self.changed = True
+
     def generate_thumbnail(self, dest_dir: str):
+        if self.htmlonly: return
         thumbnail_file = f"{dest_dir}/thumb/{self.thumbname}"
         cmd = f'ffmpeg -i "{self.path}" -hide_banner -loglevel quiet -vcodec mjpeg -vframes 1 -an -f rawvideo -s 100x100 -y "{thumbnail_file}"'
         self.myfork(cmd)
 
     def generate_item(self, dest_dir: str):
+        if self.htmlonly: return
         outfile = f"{dest_dir}/{self.basename}"
         # (mov|avi|flv|mp4|m4v|mpeg|mpg|webm|ogv)
         cmd = f'ffmpeg -i "{self.path}" -hide_banner -loglevel quiet -vcodec libvpx -cpu-used -5 -deadline realtime -y "{outfile}"'
@@ -278,12 +325,14 @@ class Note(FileItem):
     def __init__(self, fullpath: str, relpath: str, updater: object):
         FileItem.__init__(self, fullpath, relpath, updater)
         self.type = 'note'
-        self.thumbname = "res/note.png"
-        thumbfile = f"{updater.dest_dir}/{relpath}/thumb/{self.thumbname}".replace('//', '/')
+        self.thumbname = f"{self.basename}.png"
+        thumbfile = f"{updater.dest_dir}/thumb/{self.thumbname}".replace('//', '/')
+
         if not exists(thumbfile):
             self.changed = True
+
         if self.changed:
-            with os.popen(f"file {self.path}") as fh:
+            with os.popen(f"file '{self.path}'") as fh:
                 self.metadata['magic'] = fh.read().split(': ')[1]
             self.metadata['stat'] = os.stat(self.path)
             data = {
@@ -293,13 +342,59 @@ class Note(FileItem):
                 'metadata': self.metadata
             }
             updater.set_data(fullpath, data)
+            self.image = self.convert_into_image()
 
+    def convert_into_image(self) -> PILImage:
+        cmd = f'unoconv -f pdf --stdout "{self.path}" | convert -background white -[0] PNG8:-'
+        p = Popen(cmd, stdout=PIPE, bufsize=100*1024, shell=True)
+        image = PILImage.open(p.stdout)
+        return image
+    
     def generate_thumbnail(self, dest_dir: str):
-        pass
+        outfile = f"{dest_dir}/thumb/{self.thumbname}"
+        thumb = self.resize(self.image, outfile, 100, fill=True)
 
     def generate_item(self, dest_dir: str):
-        outfile = f"{dest_dir}/{self.basename}"
+        # create a preview
+        outfile = f"{dest_dir}/{self.thumbname}"
+        thumb = self.resize(self.image, outfile, 800)
+        # copy the original document over as well
+        copyfile(self.path, f"{dest_dir}/{self.basename}")
+    
+    def resize(self, image: PILImage, dest: str, width: int, height: int = None, fill: bool = False, gravity = 'center'):
         try:
-            os.link(self.path, outfile)
-        except Exception:
-            copyfile(self.path, outfile)
+            image = ImageOps.exif_transpose(image)
+
+            if not height: height = width
+            if fill:
+                scale = max([ width / image.width, height / image.height ])
+            else:
+                scale = min([ width / image.width, height / image.height ])
+
+            resized = image.resize(size=(int(scale * image.width + 0.5), int(scale * image.height + 0.5)))
+
+            if not fill: 
+                resized.save(dest)
+                return
+
+            if gravity == "top_left":
+                box = [0, 0, width, height]
+            elif gravity == "top_right":
+                shift_right = resized.width - width
+                box = [shift_right, 0, width + shift_right, height]
+            elif gravity == "bottom_left":
+                shift_top =  resized.height - height
+                box = [0, shift_top, width, height + shift_top]
+            elif gravity == "bottom_right":
+                shift_right = resized.width - width
+                shift_top =  resized.height - height
+                box = [shift_right, shift_top, shift_right+width, height + shift_top]
+            elif gravity == "center":
+                shift_right = (resized.width - width) // 2
+                shift_top = (resized.height - height) // 2
+                box = [shift_right, shift_top, shift_right+width, height + shift_top]
+            cropped = resized.crop(box=box)
+            cropped.save(dest)
+        except OSError as e:
+            print()
+            print(f"Error for {self.path}: {e}")

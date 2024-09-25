@@ -14,7 +14,7 @@ class TemplateManager:
         basedir = dirname(__file__)
         if exists(f"{basedir}/templates/{scheme_name}"):
             templates = {}
-            for x in ['folder', 'image', 'video', 'note', 'shuffle']:
+            for x in ['folder', 'image', 'video', 'note', 'shuffle', 'faces']:
                 filename = f"{basedir}/templates/{scheme_name}/{x}.html"
                 with open(filename, 'r') as fh:
                     templates[x] = Template(fh.read())

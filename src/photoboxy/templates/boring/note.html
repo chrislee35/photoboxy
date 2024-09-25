@@ -1,5 +1,5 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html>
+<!DOCTYPE html> 
+<html lang="en">
 <head>
 	<title>Photoboxy - {{ item }}</title>
 	<link rel="stylesheet" href="res/common.css" />
@@ -46,7 +46,9 @@
 </div>
 
 <h1>{{ item }}</h1>
-<a href="{{ item | e }}" alt='{{ item }}' class='button'>Download</a>
+<a href="{{ item | e }}" alt='{{ item }}'>
+  <img class='main_image' src="{{ item | e }}.png"  style="background-color: white;" />
+</a>
 <br/>
 <br/>
 <br/>
