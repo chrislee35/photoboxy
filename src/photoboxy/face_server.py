@@ -147,9 +147,9 @@ def retag():
     return jsonify({'status': 'OK', 'new_face_id': new_face_id, 'new_file_id': new_file_id, 'name': name})
 
 @app.route('/untag', methods=["POST"])
-def untag(face_id:int, file_id:int):
-    src_filename = data['src_filename']
+def untag():
     data = request.get_json()
+    src_filename = data['src_filename']
     old_face_id = int(data['face_id'])
     meta = json.loads(db[src_filename])
     scale = meta['metadata'].get('scale', 1.0)

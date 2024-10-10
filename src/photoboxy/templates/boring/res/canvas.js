@@ -8,7 +8,7 @@ class FaceTagManager {
         this.current_tag = undefined;
         this.current_box = {};
         this.drag = { tr: false, tl: false, br: false, bl: false, wr: false };
-        this.start = { x: 0, y: 0 };
+        this.start = { x: undefined, y: undefined };
         
         this.box_color = "#05c4a9";
         this.handleRadius = 10;
@@ -57,19 +57,6 @@ class FaceTagManager {
         this.deltag_call(face_id, tag.left + 1, tag.top + 1)
     };
 
-    newBox() {
-        this.current_box = {
-            left: (this.canvas.width/2) - 10,
-            top: (this.canvas.height/2) - 10,
-            width: 20,
-            height: 20
-        };
-    };
-
-    delBox() {
-        this.current_box = {};
-    };
-
     drawTags() {
         let color_map = {};
         let box_color = this.box_color;
@@ -95,51 +82,22 @@ class FaceTagManager {
         });
     };
 
-    drawCircle(x, y, radius) {
-        let ctx = this.canvas.getContext("2d");
-        ctx.fillStyle = this.box_color;
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, 2 * Math.PI);
-        ctx.fill();
-    };
-
-    drawHandles() {
-        let rect = this.current_box;
-        let handleRadius = this.handleRadius;
-        this.drawCircle(rect.left, rect.top, handleRadius);
-        this.drawCircle(rect.left + rect.width, rect.top, handleRadius);
-        this.drawCircle(rect.left + rect.width, rect.top + rect.height, handleRadius);
-        this.drawCircle(rect.left, rect.top + rect.height, handleRadius);
-    };
-
     // draws the current box that the user is trying to size as a first step to adding a new tag
-    drawBox() {
-        if(this.current_box.left == undefined) return;
-        let rect = this.current_box;
+    drawBox(left, top, width, height) {
         var ctx = this.canvas.getContext("2d");
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         ctx.beginPath();
         ctx.lineWidth = "4";
         ctx.fillStyle = "rgba(199, 87, 231, 0.2)";
         ctx.strokeStyle = this.box_color;
-        ctx.rect(rect.left, rect.top, rect.width, rect.height);
+        ctx.rect(left, top, width, height);
         ctx.fill();
         ctx.stroke();
-        this.drawHandles();
     };
 
-    mouseUp(e) {
-        let myself = e.target.facetag_manager;
-        Object.keys(myself.drag).forEach( (k,i) => { myself.drag[k] = false });
-    };
-    
     //mousedown connected functions -- START
     inBox(x, y, r) {
         return (x>r.left && x<(r.width+r.left)) && (y>r.top && y<(r.top+r.height));
-    };
-    
-    closeEnough(p1, p2) {
-        return Math.abs(p1 - p2) < this.handleRadius;
     };
     
     getMousePos(canvas, evt) {
@@ -164,157 +122,88 @@ class FaceTagManager {
         let pos = myself.getMousePos(canvas, e);
         let mouseX = pos.x;
         let mouseY = pos.y;
-        let rect = myself.current_box;
-
-        // first check the current_box, then all the tags
-
-        if (rect.left != undefined) {
-            // 0. inside movable rectangle
-            if (myself.inBox(mouseX, mouseY, rect)){
-                myself.drag.wr = true;
-                myself.start.x = mouseX
-                myself.start.y = mouseY
+       
+        let found = false;
+        myself.tags.forEach( (tag, i) => {
+            if(myself.inBox(mouseX, mouseY, tag)) {
+                myself.selectTag(i);
+                found = true;
             }
-            // 1. top left
-            else if (myself.closeEnough(mouseX, rect.left) && myself.closeEnough(mouseY, rect.top)) {
-                myself.drag.tl = true;
-            }
-            // 2. top right
-            else if (myself.closeEnough(mouseX, rect.left + rect.width) && myself.closeEnough(mouseY, rect.top)) {
-                myself.drag.tr = true;
-            }
-            // 3. bottom left
-            else if (myself.closeEnough(mouseX, rect.left) && myself.closeEnough(mouseY, rect.top + rect.height)) {
-                myself.drag.bl = true;
-            }
-            // 4. bottom right
-            else if (myself.closeEnough(mouseX, rect.left + rect.width) && myself.closeEnough(mouseY, rect.top + rect.height)) {
-                myself.drag.br = true;
-            }
-            // (5.) none of them
-            else {
-                // handle not resizing
-            }
-            myself.drawBox();
-        } else {
-            myself.tags.forEach( (tag, i) => {
-                if(myself.inBox(mouseX, mouseY, tag)) {
-                    myself.selectTag(i);
-                }
-            });
+        });
+        if(!found) {
+            myself.start.x = mouseX;
+            myself.start.y = mouseY;
         }
     };
      
     mouseMove(e) {    
         let canvas = e.target;
         let myself = canvas.facetag_manager;
+        if(myself.start.x == undefined) {
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+
         let pos = myself.getMousePos(canvas, e);
         let mouseX = pos.x;
         let mouseY = pos.y;
-        let rect = myself.current_box;
 
-        if (myself.drag.wr) {
-            e.preventDefault();
-            e.stopPropagation();
-            let dx = mouseX - myself.start.x;
-            let dy = mouseY - myself.start.y;
-            if ((rect.left+dx)>0 && (rect.left+dx+rect.width)<canvas.width) {
-                rect.left += dx;
-            }
-            if ((rect.top+dy)>0 && (rect.top+dy+rect.height)<canvas.height) {
-                rect.top += dy;
-            }
-            myself.start.x = mouseX;
-            myself.start.y = mouseY;
-        } else if (myself.drag.tl) {
-            e.preventDefault();
-            e.stopPropagation();
-            let x1 = rect.left;
-            let x2 = x1 + rect.width;
-            let y1 = rect.top;
-            let y2 = y1 + rect.height;
+        let left = Math.min( ...[myself.start.x, mouseX]);
+        let top = Math.min( ...[myself.start.y, mouseY]);
 
-            if( mouseX < x2 - myself.minimum_width ) {
-                rect.left = mouseX;
-                rect.width = x2 - mouseX;
-            }
-            if( mouseY < y2 - myself.minimum_width ) {
-                rect.top = mouseY;
-                rect.height = y2 - mouseY;
-            }
-        } else if (myself.drag.tr) {
-            e.preventDefault();
-            e.stopPropagation();
+        let width = Math.abs(mouseX - myself.start.x);
+        let height = Math.abs(mouseY - myself.start.y);
+        myself.drawBox(left, top, width, height);
+    };
 
-
-            let x1 = rect.left;
-            let x2 = x1 + rect.width;
-            let y1 = rect.top;
-            let y2 = y1 + rect.height;
-
-            if( mouseX > x1 + myself.minimum_width ) {
-                rect.width = mouseX - x1;
-            }
-            if( mouseY < y2 - myself.minimum_width ) {
-                rect.top = mouseY;
-                rect.height = y2 - mouseY;
-            }
-        } else if (myself.drag.bl) {
-            e.preventDefault();
-            e.stopPropagation();
-
-            let x1 = rect.left;
-            let x2 = x1 + rect.width;
-            let y1 = rect.top;
-            let y2 = y1 + rect.height;
-
-            if( mouseX < x2 - myself.minimum_width ) {
-                rect.left = mouseX;
-                rect.width = x2 - mouseX;
-            }
-            if( mouseY > y1 + myself.minimum_width ) {
-                rect.height = mouseY - y1;
-            }
-        } else if (myself.drag.br) {
-            e.preventDefault();
-            e.stopPropagation();
-            rect.width = mouseX - rect.left;
-            rect.height = mouseY - rect.top;
-            if(rect.width < myself.minimum_width) rect.width = myself.minimum_width
-            if(rect.height < myself.minimum_width) rect.height = myself.minimum_width
+    mouseUp(e) {
+        let myself = e.target.facetag_manager;
+        if(myself.start.x == undefined) {
+            return;
         }
-        myself.drawBox();
+        e.preventDefault();
+        e.stopPropagation();
+
+        let pos = myself.getMousePos(canvas, e);
+        let mouseX = pos.x;
+        let mouseY = pos.y;
+
+        let c = myself.start;
+
+        let left = Math.min( ...[c.x, mouseX]);
+        let top = Math.min( ...[c.y, mouseY]);
+
+        let width = Math.abs(mouseX - c.x);
+        let height = Math.abs(mouseY - c.y);
+
+        c.l = left;
+        c.t = top;
+        c.w = width;
+        c.h = height;
+        let newname = prompt("Who is this?");
+        if(newname.length > 0) {
+            myself.newtag_call(newname, left, top, width, height);
+        }
     };
 
     keyHandler(e) {
         let canvas = document.getElementById('canvas');
         let myself = canvas.facetag_manager;
         e = e || window.event;
+        if(myself.current_tag == undefined) return;
         if (e.key == "F2") {
-            if(myself.current_tag == undefined) return;
             let newname = prompt("Who is this?");
             if(newname.length > 0) {
                 myself.renameTag(myself.current_tag, newname);
             }
-        } else if (e.key == "Insert") {
-            myself.newBox()
-            myself.drawBox()
         } else if (e.key == "r") {
-            if(myself.current_tag == undefined) return;
             let newname = prompt("Who is this?");
             if(newname.length > 0) {
                 myself.renameFace(myself.current_tag, newname);
             }
         } else if (e.key == "Delete") {
-            if(myself.current_tag == undefined) return;
             myself.deleteTag(myself.current_tag);
-        } else if (e.key == "+") {
-            if(myself.current_box.left == undefined) return;
-            let newname = prompt("Who is this?");
-            if(newname.length > 0) {
-                myself.newtag_call(newname);
-            }
-        } else if (e.key == "?") {
         } else {
             console.log(e);
         }
@@ -368,15 +257,15 @@ class FaceTagManager {
         myself.drawTags();
     };
 
-    newtag_call(name) {
+    newtag_call(name, left, top, width, height) {
         let url = '/tag';
         let data = {
             src_filename: this.src_filename,
             name: name,
-            left: this.current_box.left,
-            top: this.current_box.top,
-            width: this.current_box.width,
-            height: this.current_box.height
+            left: left,
+            top: top,
+            width: width,
+            height: height
         };
         this.ajax(url, data, this.newtag_cb);
     };
@@ -388,8 +277,9 @@ class FaceTagManager {
         let name = response.name;
         let canvas = document.getElementById('canvas');
         let myself = canvas.facetag_manager;
-        myself.addTag(face_id, name, myself.current_box.left, myself.current_box.top, myself.current_box.width, myself.current_box.height)
-        myself.current_box = {};
+        let c = myself.start;
+        myself.addTag(face_id, name, c.l, c.t, c.w, c.h);
+        Object.keys(c).forEach( (k) => {c[k] = undefined });
         myself.drawTags();
     };
 
