@@ -6,7 +6,7 @@ import time
 from .directory import Directory
 from .template_manager import TemplateManager
 from .pool import Pool
-from .cluster import Embedder, Clusterer
+from .faces import Embedder, FaceIndexer
 from threading import Thread
 
 class Updater:
@@ -47,7 +47,7 @@ class Updater:
         self.directory = Directory(fullpath, updater=self)
         self.pool = Pool()
         self.embedder = Embedder()
-        self.clusterer = Clusterer()
+        self.face_indexer = FaceIndexer()
 
         self.print_stats_thread = Thread(target=self.print_stats_continuous)
         self.timestamps = {
@@ -82,6 +82,26 @@ class Updater:
     def embed(self, img):
         return self.embedder.embed(img)
 
+    def load_cluster(self):
+        if '.cluster_cache' in self.db:
+            self.face_indexer = self.db['.cluster_cache']
+
+    def needs_clustering(self) -> bool:
+        """ Decide if FaceIndexer should rerun the clustering algorithm """
+        # if the clustering database is empty, sure, let's run it (at worse, it clusters nothing)
+        if '.cluster_cache' not in self.db or self.db['.cluster_cache'] is None:
+            return True
+        
+        # if there are changed images that have faces (embeddings) in them
+        for changed in self.changes:
+            data = self.db.get(changed)
+            if 'metadata' not in data: continue
+            if 'embeddings' not in data['metadata']: continue
+            if len(data['metadata']['embeddings']) > 0:
+                return True
+                
+        return False
+
     def cluster(self):
         self.state = 'clustering'
         self.timestamps['cluster_s'] = time.time()
@@ -90,6 +110,8 @@ class Updater:
         filenames = []
         # for every file in the database, not just those that were updated
         for filename in self.db.keys():
+            # skip the clustering cache
+            if filename == '.cluster_cache': continue
             # get the data
             data = self.get_data(filename)
             # see if the file has embeddings, this test is cheaper than testing if the file still exists
@@ -104,7 +126,8 @@ class Updater:
                 embeddings.append(embed['embed'])
                 bboxes.append(embed['bbox'])
         # run the clustering algorithm
-        self.clusterer.cluster(filenames, bboxes, embeddings, Updater.CLUSTER_THRESHOLD)
+        self.face_indexer.cluster(filenames, bboxes, embeddings, Updater.CLUSTER_THRESHOLD)
+        self.db['.cluster_cache'] = self.face_indexer
     
     def generate(self, dest_dir, template_name='boring'):
         self.state = 'generating'
@@ -114,7 +137,7 @@ class Updater:
         self.pool.waitall()
         # the clusterer needs to know the source dir so that it can rewrite the filenames
         # into relative urls for the images and thumbnails
-        self.clusterer.generate(templates, dest_dir, self.source_dir)
+        self.face_indexer.generate(templates, dest_dir, self.source_dir)
         self.state = 'generated'
         self.timestamps['gen_e'] = time.time()
         self.print_stats_thread.join()

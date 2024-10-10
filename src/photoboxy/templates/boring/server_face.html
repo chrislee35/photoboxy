@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Photoboxy - {{ item | e }}</title>
+	<link rel="stylesheet" href="/res/common.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="generator" content="photoboxy {{ version }}" />
+	<meta charset="UTF-8" />
+	<script type="text/javascript">
+		function ajax(url, data, cb) {
+			let post = JSON.stringify(data)
+			let xhr = new XMLHttpRequest()
+			xhr.open('POST', url, true)
+			xhr.setRequestHeader('Content-type', 'application/json; charset=UTF-8')
+			xhr.send(post);
+			xhr.onload = (e) => {
+				console.log(xhr);
+				console.log(e);
+				let data = JSON.parse(xhr.response);
+				document.getElementById('name').innerHTML = data['name'];
+			}
+		};
+
+		function rename_cb(data) {
+			console.log(data);
+			document.getElementById('name').innerHTML = data['name'];
+		}
+
+		function rename(face_id, new_name) {
+			let url = '/rename';
+			let data = {
+				face_id: face_id,
+				name: new_name,
+			};
+			ajax(url, data, rename_cb);
+		}
+
+	</script>
+</head>
+
+<body>
+<a class="button" href="/">All Faces</a>
+
+<h1 id="name">{{name}}</h1>
+<form name="face" method="POST" action="/rename">
+    <input type="hidden" name="face_id" value="{{face_id}}" />
+    <label for="name">New Name</label>
+    <input id="name" type="text" name="name" autofocus />
+    <input type="button" value="rename" onclick="rename(this.form.face_id.value, this.form.name.value);"/>
+</form>
+
+{% if images -%}
+<div id='images' class='box'>
+	{% for image in images -%}
+	<div class='image'>
+		<a href="/page/{{face_id}}/{{image.file_id}}">
+			<img src="/thumb/{{face_id}}/{{image.file_id}}" />
+            <div class="label">{{image.name}}</div>
+		</a>
+	</div>
+	{% endfor %}
+</div>
+<br/>
+{% endif %}
+
+</body>
+</html>

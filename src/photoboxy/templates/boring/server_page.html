@@ -1,0 +1,33 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+	<title>Photoboxy - {{ item | e }}</title>
+	<link rel="stylesheet" href="/res/common.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="generator" content="photoboxy {{ version }}" />
+	<meta charset="UTF-8" />
+	<script type="text/javascript" src="/res/canvas.js" defer></script>
+	<script type='text/javascript'>
+	
+	window.onload = (ev) => {
+		let canvas = document.getElementById('canvas');
+		let image = document.getElementById('image');
+		let fm = new FaceTagManager(canvas, image, "{{src_filename}}");
+{% for tag in tags -%}
+		fm.addTag({{tag.face_id}}, "{{tag.name}}", {{tag.left}}, {{tag.top}}, {{tag.width}}, {{tag.height}});
+{% endfor %}
+		fm.drawTags();
+	};
+	</script>
+</head>
+
+<body>
+<a class='button' href="/">All Faces</a>
+<a class='button' href="/face/{{ face_id }}">{{face_name}}</a>
+<br/>
+<center>
+<div id='main_element_div' style='margin-right: 10px;'>
+<canvas id="canvas" width="800" height="800" style="position:absolute; left: 0px; top: 0px;"></canvas>
+<img id="image" class='main_image' src="/image/{{face_id}}/{{file_id}}" usemap="#tags"/>
+</body>
+</html>

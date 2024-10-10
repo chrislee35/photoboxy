@@ -112,7 +112,7 @@ class FileItem:
         if self.n: next_destname = self.n.basename
         if self.p: prev_destname = self.p.basename
         # get the clusters
-        clusters = self.updater.clusterer.get_clusters(self.path)
+        clusters = self.updater.face_indexer.get_clusters(self.path)
         # rescale and convert the bounding box to integers, then make it a string with a comma between each coordinate
         if clusters and 'scale' in self.metadata:
             r = self.metadata['scale']
@@ -122,7 +122,7 @@ class FileItem:
             self.metadata.pop('embeddings')
 
         # we need to calculate the relative path to the root, remember that the faces directory may not exist yet.
-        cluster_rel = ('../' * self.relpath.count('/'))+'_faces'
+        cluster_rel = ('../' * self.relpath.count('/'))+'faces'
         # generate the html
         html = template.render(
             up='index.html',

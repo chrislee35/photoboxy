@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Photoboxy - {{ item | e }}</title>
+	<link rel="stylesheet" href="/res/common.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="generator" content="photoboxy {{ version }}" />
+	<meta charset="UTF-8" />
+</head>
+
+<body>
+<h1 id="name">Faces</h1>
+
+{% if faces -%}
+<div id='images' class='box'>
+	{% for face in faces -%}
+	<div class='image'>
+		<a href="/face/{{face.face_id}}">
+			<img src="{{face.thumbnail}}" />
+            <div class="label">{{face.name}}</div>
+		</a>
+	</div>
+	{% endfor %}
+</div>
+<br/>
+{% endif %}
+
+</body>
+</html>

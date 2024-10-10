@@ -12,10 +12,10 @@
 {% for parent in parents -%}
 <a class='button{% if parent.disabled %} button_disabled{% endif %}' href='{{ parent.link }}'>{{ parent.folder }}</a>
 {% endfor %}
-<a class='button' href='shuffle.html'>Slide Show</a>
 {% if not item -%}
-<a class='button' href='_faces/index.html'>Faces</a>
+<a class='button' href='faces/index.html'>Faces</a>
 {% endif %}
+<a class='button' href='shuffle.html'>Slide Show</a>
 <center>
 
 {% if subdirs -%}

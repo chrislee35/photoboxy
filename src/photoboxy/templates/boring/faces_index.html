@@ -14,9 +14,8 @@
 					this.src = 'res/album.png';
 				};
 			})
-			var myid = document.getElementById('name').innerText;
-            if(names[myid]) {
-                document.getElementById('name').innerText = names[myid];
+			for(var myid in names) {
+                document.getElementById('faces_'+myid).innerText = names[myid];
             }
 		});
 	</script>
@@ -24,7 +23,6 @@
 
 <body>
 <a class="button" href="../index.html">Home</a>
-<a class="button" href="index.html">Faces</a>
 {%- if prev -%}
 <a class='button' href="{{ prev | e }}.html">Prev</a>
 {%- else -%}
@@ -45,6 +43,7 @@
 	<div class='image'>
 		<a href="{{image.webpage}}">
 			<img src="{{image.thumbnail}}" />
+            <div class="label" id="faces_{{image.faceid}}"></div>
 		</a>
 	</div>
 	{% endfor %}
