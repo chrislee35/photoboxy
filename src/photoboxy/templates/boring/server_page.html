@@ -3,16 +3,120 @@
 <head>
 	<title>Photoboxy - {{ item | e }}</title>
 	<link rel="stylesheet" href="/res/common.css" />
+	<link rel="stylesheet" href="https://code.jquery.com/ui/1.14.0/themes/base/jquery-ui.css">
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<meta name="generator" content="photoboxy {{ version }}" />
 	<meta charset="UTF-8" />
 	<script type="text/javascript" src="/res/canvas.js" defer></script>
-	<script type='text/javascript'>
-	
+	<script src="https://code.jquery.com/jquery-3.7.1.js"></script>
+	<script src="https://code.jquery.com/ui/1.14.0/jquery-ui.js"></script>  
+	<script type='text/javascript'>	
+	let names = {{ names }};
 	window.onload = (ev) => {
+
 		let canvas = document.getElementById('canvas');
 		let image = document.getElementById('image');
 		let fm = new FaceTagManager(canvas, image, "{{src_filename}}");
+
+		$( "#name_dialog" ).dialog({ 
+			autoOpen: false,
+			buttons: [
+				{
+					text: "Add Tag",
+					icon: "ui-icon-tag",
+					click: () => {
+						$( "#name_dialog" ).dialog( "close" );
+						let newname = $("#name").val();
+						$("#name").val("");
+						fm.newtag_call(newname, fm.start.l, fm.start.t, fm.start.w, fm.start.h);
+					}
+				},
+				{
+					text: "Cancel",
+					icon: "ui-icon-cancel",
+					click: () => {
+						$( "#name_dialog" ).dialog( "close" );
+            			fm.drawTags();
+					}
+				}
+			]
+		});
+		$( "#name" ).autocomplete({ 
+			source: names, 
+			change: () => {
+				$( "#name_dialog" ).dialog( "close" );
+				let newname = $("#name").val();
+				$("#name").val("");
+				fm.newtag_call(newname, fm.start.l, fm.start.t, fm.start.w, fm.start.h);
+			}
+		});
+
+		$( "#retag_dialog" ).dialog({ 
+			autoOpen: false,
+			buttons: [
+				{
+					text: "Rename Tag",
+					icon: "ui-icon-tag",
+					click: () => {
+						$( "#retag_dialog" ).dialog( "close" );
+						let newname = $("#retag").val();
+						$("#retag").val("");
+						fm.renameTag(fm.current_tag, newname);
+					}
+				},
+				{
+					text: "Cancel",
+					icon: "ui-icon-cancel",
+					click: () => {
+						$( "#retag_dialog" ).dialog( "close" );
+            			fm.drawTags();
+					}
+				}
+			]
+		});
+		$( "#retag" ).autocomplete({ 
+			source: names, 
+			change: () => {
+				$( "#retag_dialog" ).dialog( "close" );
+				let newname = $("#retag").val();
+				$("#retag").val("");
+				fm.renameTag(fm.current_tag, newname);
+			}
+		});
+
+		$( "#rename_dialog" ).dialog({ 
+			autoOpen: false,
+			buttons: [
+				{
+					text: "Rename Face",
+					icon: "ui-icon-tag",
+					click: () => {
+						$( "#rename_dialog" ).dialog( "close" );
+						let newname = $("#rename").val();
+						$("#rename").val("");
+						fm.renameFace(fm.current_tag, newname);						
+					}
+				},
+				{
+					text: "Cancel",
+					icon: "ui-icon-cancel",
+					click: () => {
+						$( "#rename_dialog" ).dialog( "close" );
+            			fm.drawTags();
+					}
+				}
+			]
+		});
+		$( "#rename" ).autocomplete({ 
+			source: names, 
+			change: () => {
+				$( "#rename_dialog" ).dialog( "close" );
+				let newname = $("#rename").val();
+				$("#rename").val("");
+				fm.renameFace(fm.current_tag, newname);	
+			}
+		});
+
 {% for tag in tags -%}
 		fm.addTag({{tag.face_id}}, "{{tag.name}}", {{tag.left}}, {{tag.top}}, {{tag.width}}, {{tag.height}});
 {% endfor %}
@@ -24,10 +128,42 @@
 <body>
 <a class='button' href="/">All Faces</a>
 <a class='button' href="/face/{{ face_id }}">{{face_name}}</a>
+{% if prev -%}
+<a id="prev" class='button' href="/page/{{ face_id }}/{{ prev }}">Prev</a>
+{% endif %}
+{% if next -%}
+<a id="next" class='button' href="/page/{{ face_id }}/{{ next }}">Next</a>
+{% endif %}
 <br/>
 <center>
 <div id='main_element_div' style='margin-right: 10px;'>
 <canvas id="canvas" width="800" height="800" style="position:absolute; left: 0px; top: 0px;"></canvas>
 <img id="image" class='main_image' src="/image/{{face_id}}/{{file_id}}" usemap="#tags"/>
+<br/>
+<span style='color:white'>{{src_filename}}</span>
+
+<div id="recent" style="color: white; position: absolute; top: 20px; right: 5px;"></div>
+
+<div id="name_dialog" class="ui-widget">
+	<form name="name_form" onsubmit="event.preventDefault();">
+		<label for="name">Name: </label>
+		<input type="text" id="name" name="name" />
+	</form>
+</div>
+
+<div id="retag_dialog" class="ui-widget">
+	<form name="retag_form" onsubmit="event.preventDefault();">
+		<label for="retag">Name: </label>
+		<input type="text" id="retag" name="retag" />
+	</form>
+</div>
+
+<div id="rename_dialog" class="ui-widget">
+	<form name="rename_form" onsubmit="event.preventDefault();">
+		<label for="rename">Name: </label>
+		<input type="text" id="rename" name="rename" />
+	</form>
+</div>
+
 </body>
 </html>

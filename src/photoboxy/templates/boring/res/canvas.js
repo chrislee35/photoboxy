@@ -11,6 +11,7 @@ class FaceTagManager {
         this.start = { x: undefined, y: undefined };
         
         this.box_color = "#05c4a9";
+        this.box_color_hl = "purple";
         this.handleRadius = 10;
         this.minimum_width = 25;
 
@@ -27,6 +28,15 @@ class FaceTagManager {
         canvas.addEventListener('touchend', this.mouseUp);
 
         document.addEventListener('keydown', this.keyHandler);
+        this.recent = localStorage.getItem("recent");
+        console.log(this.recent);
+        if(this.recent == undefined || this.recent == "") {
+            this.recent = [];
+            localStorage.setItem("recent", JSON.stringify(this.recent));
+        } else {
+            this.recent = JSON.parse(this.recent);
+        }
+        this.renderRecent();
     };
 
     addTag(face_id, name, left, top, width, height) {
@@ -57,17 +67,42 @@ class FaceTagManager {
         this.deltag_call(face_id, tag.left + 1, tag.top + 1)
     };
 
+    updateRecent(name) {
+        console.log("updateRecent", name);
+        if( this.recent.indexOf(name) > -1 ) {
+            let index = this.recent.indexOf(name);
+            this.recent.splice(index, 1);
+        }
+        this.recent.unshift(name);
+        if( this.recent.length > 10) this.recent.pop();
+        localStorage.setItem("recent", JSON.stringify(this.recent));
+        this.renderRecent();
+    };
+
+    renderRecent() {
+        let html = "<table>";
+        this.recent.forEach( (name, index) => {
+            html += `<tr><th>${index}</th><td>${name}</td></tr>`;
+        })
+        html += "</table>";
+        $("#recent").html(html);
+    };
+
     drawTags() {
         let color_map = {};
         let box_color = this.box_color;
+        let box_color_hl = this.box_color_hl;
         let ctx = this.canvas.getContext("2d");
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.tags.forEach( (tag, i) => {
             if(tag == undefined) return;
             ctx.beginPath();
             ctx.lineWidth = "2";
-            if(i == this.current_tag) ctx.lineWidth = "4";
             ctx.strokeStyle = box_color;
+            if(i == this.current_tag) {
+                ctx.lineWidth = "4";
+                ctx.strokeStyle = box_color_hl;
+            }
             ctx.rect(tag.left, tag.top, tag.width, tag.height);
             ctx.stroke();
 
@@ -76,6 +111,7 @@ class FaceTagManager {
             ctx.textBaseline = "bottom";
             ctx.font = "14px Verdana";
             ctx.fillStyle = box_color;
+            if(i == this.current_tag) ctx.fillStyle = box_color_hl;
             //let textWidth = ctx.measureText(tag.name).width;
             ctx.fillText(tag.name, tag.left + (tag.width/2), tag.top)
             ctx.stroke();
@@ -181,29 +217,51 @@ class FaceTagManager {
         c.t = top;
         c.w = width;
         c.h = height;
-        let newname = prompt("Who is this?");
-        if(newname.length > 0) {
-            myself.newtag_call(newname, left, top, width, height);
-        }
+        $( "#name_dialog" ).dialog( "open" );
+        $( "#name" ).focus()
+        myself.start.x = undefined;
     };
 
     keyHandler(e) {
         let canvas = document.getElementById('canvas');
         let myself = canvas.facetag_manager;
         e = e || window.event;
-        if(myself.current_tag == undefined) return;
+        if ($( "#retag_dialog" ).dialog( "isOpen" )) return;
+        if ($( "#name_dialog" ).dialog( "isOpen" )) return;
+        if ($( "#rename_dialog" ).dialog( "isOpen" )) return;
+
         if (e.key == "F2") {
-            let newname = prompt("Who is this?");
-            if(newname.length > 0) {
-                myself.renameTag(myself.current_tag, newname);
-            }
+            if (myself.current_tag == undefined) return;
+            $( "#retag_dialog" ).dialog( "open" );
+            $( "#retag" ).focus();
         } else if (e.key == "r") {
-            let newname = prompt("Who is this?");
-            if(newname.length > 0) {
-                myself.renameFace(myself.current_tag, newname);
-            }
+            if (myself.current_tag == undefined) return;
+            e.preventDefault();
+            e.stopPropagation();
+            $( "#rename_dialog" ).dialog( "open" );
+            $( "#rename" ).focus()
         } else if (e.key == "Delete") {
+            if (myself.current_tag == undefined) return;
             myself.deleteTag(myself.current_tag);
+        } else if (e.key == "n") {
+            window.location = $( "#next" )[0].href;
+        } else if (e.key == "p") {
+            window.location = $( "#prev" )[0].href;
+        } else if (e.key == "x") {
+            if (myself.current_tag == undefined || myself.current_tag == myself.tags.length - 1) {
+                myself.current_tag = 0;
+            } else {
+                myself.current_tag += 1;
+            }
+            myself.drawTags();
+        } else if (e.keyCode >= 48 && e.keyCode <= 57) {
+            if (myself.current_tag == undefined) return;
+            e.preventDefault();
+            e.stopPropagation();
+            let offset = e.keyCode - 48;
+            if(offset > myself.recent.length - 1) return;
+            let newname = myself.recent[offset];
+            myself.renameTag(myself.current_tag, newname);
         } else {
             console.log(e);
         }
@@ -240,6 +298,7 @@ class FaceTagManager {
         tag['face_id'] = response.new_face_id;
         tag['name'] = response.name;
         myself.drawTags();
+        myself.updateRecent(response.name);
     };
 
     rename_call(face_id, name, left, top) {
@@ -255,6 +314,7 @@ class FaceTagManager {
         tag['face_id'] = response.new_face_id;
         tag['name'] = response.name;
         myself.drawTags();
+        myself.updateRecent(response.name);
     };
 
     newtag_call(name, left, top, width, height) {
@@ -279,6 +339,7 @@ class FaceTagManager {
         let myself = canvas.facetag_manager;
         let c = myself.start;
         myself.addTag(face_id, name, c.l, c.t, c.w, c.h);
+        myself.updateRecent(name);
         Object.keys(c).forEach( (k) => {c[k] = undefined });
         myself.drawTags();
     };
@@ -292,14 +353,14 @@ class FaceTagManager {
             y: y
         };
         this.ajax(url, data, this.deltag_cb);
-    }
+    };
 
     deltag_cb(response) {
         let canvas = document.getElementById('canvas');
         let myself = canvas.facetag_manager;
-        myself.tags.pop(myself.current_tag);
+        myself.tags.splice(myself.current_tag, 1);
         myself.current_tag = undefined;
         myself.drawTags();
-    }
+    };
 
 };

@@ -77,10 +77,12 @@ class FaceIndexer:
                 face['face_id'] = new_face_id
                 face['name'] = new_name
                 found = True
-
+                if filename not in self.faces[new_face_id]:
+                    self.faces[new_face_id].append(filename)
+        
         if found:
-            self.faces[old_face_id].remove(filename)
-            self.faces[new_face_id].append(filename)
+            if old_face_id not in [face['face_id'] for face in self.files[filename]]:
+                self.faces[old_face_id].remove(filename)
             new_file_id = len(self.faces[new_face_id]) - 1
             return new_file_id
         return None

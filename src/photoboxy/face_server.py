@@ -71,6 +71,12 @@ def show_face_images(face_id: int):
 @app.route('/page/<int:face_id>/<int:file_id>')
 def page(face_id:int, file_id:int):
     src_filename = list(face_indexer.faces[face_id])[file_id]
+    n = p = None
+    if file_id > 0:
+        p = file_id - 1
+    if file_id + 1 < len(list(face_indexer.faces[face_id])):
+        n = file_id + 1
+
     basename = src_filename.split('/')[-1]
     tags = face_indexer.files[src_filename]
     data = json.loads(db[src_filename])
@@ -84,6 +90,7 @@ def page(face_id:int, file_id:int):
         items.append({'face_id': tag['face_id'], 'name': name, 'top': top, 'left': left, 'width': width, 'height': height})
 
     name = face_indexer.names[face_id]
+    names = json.dumps(sorted(list(set([x for x in face_indexer.names.values() if not x.isnumeric()]))))
     template = env.get_template("server_page.html")
     html = template.render(
         image_name = basename,
@@ -91,7 +98,10 @@ def page(face_id:int, file_id:int):
         face_name = name,
         file_id = file_id,
         src_filename = src_filename,
-        tags = items
+        tags = items,
+        next = n,
+        prev = p,
+        names = names
     )
     return html
 
