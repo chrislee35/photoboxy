@@ -15,7 +15,9 @@
 				};
 			})
 			for(var myid in names) {
-                document.getElementById('faces_'+myid).innerText = names[myid];
+				if(document.getElementById('faces_'+myid)) {
+                	document.getElementById('faces_'+myid).innerText = names[myid];
+				}
             }
 		});
 	</script>

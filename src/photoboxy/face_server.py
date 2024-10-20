@@ -2,6 +2,7 @@ from flask import Flask, send_file, request, redirect, jsonify
 import diskcache
 import json
 from .template_manager import TemplateManager
+from .tag_manager import TagManager
 
 from jinja2 import Environment, FileSystemLoader
 import os
@@ -13,13 +14,13 @@ env = Environment(loader=loader)
 source_dir = "/home/chris/bakudan/imgs/photos"
 dest_dir = "/home/chris/Jungle/photoboxy"
 db = diskcache.Index(dest_dir+'/.db')
-face_indexer = db['.cluster_cache']
+tag_manager = TagManager(db)
 app = Flask(__name__)
 
 def save():
-    db['.cluster_cache'] = face_indexer
+    tag_manager.save()
 
-    faces_order = sorted(face_indexer.faces.keys(), key=lambda c: len(face_indexer.faces[c]), reverse=True)
+    faces_order = sorted(tag_manager.faces.keys(), key=lambda c: len(tag_manager.faces[c]), reverse=True)
     faces_dir = dest_dir+"/faces"
 
     # backup previous file if it exists
@@ -32,7 +33,7 @@ def save():
         fh.write("var names = ")
         names = {}
         for face_id in faces_order:
-            names[face_id] = face_indexer.names.get(face_id, str(face_id))
+            names[face_id] = tag_manager.names.get(face_id, str(face_id))
         json.dump(names, fh, indent=2)
         fh.write(";\n")
 
@@ -42,18 +43,18 @@ def show_faces():
     faces_index = []
 
     # 1st, sort the clusters by length, longest first
-    faces_order = sorted(face_indexer.faces.keys(), key=lambda c: len(face_indexer.faces[c]), reverse=True)
+    faces_order = sorted(tag_manager.faces.keys(), key=lambda c: len(tag_manager.faces[c]), reverse=True)
     # 5th, enumerate through the order cluster names, so that we can determine next and previous clusters for the template
     for face_id in faces_order:
         # 6th, wrap the webpage and thumbnail urls into a list of dictionaries for the template
         # this is tricky
         fewest_c = 10000 # used to add the photo with the fewest faces
         fewest = None
-        for file_id, filename in enumerate(face_indexer.faces[face_id]):
-            num_faces = len(face_indexer.files[filename])
+        for file_id, filename in enumerate(tag_manager.faces[face_id]):
+            num_faces = len(tag_manager.files[filename])
             if num_faces < fewest_c:
                 image_rel_thumbnail_url = f"/thumb/{face_id}/{file_id}"
-                name = face_indexer.names.get(face_id, face_id)
+                name = tag_manager.names.get(face_id, face_id)
                 fewest = {'face_id': str(face_id), 'name': name, 'thumbnail': image_rel_thumbnail_url}
                 fewest_c = num_faces
         if fewest:
@@ -70,13 +71,13 @@ def show_faces():
 
 @app.route('/face/<int:face_id>')
 def show_face_images(face_id: int):
-    name = face_indexer.names.get(face_id, face_id)
+    name = tag_manager.names.get(face_id, face_id)
     images = []
-    src_filenames = list(face_indexer.faces[face_id])
+    src_filenames = list(tag_manager.faces[face_id])
     for file_id, src_filename in enumerate(src_filenames):
         images.append( { 'file_id': file_id } )
 
-    names = json.dumps(sorted(list(set([x for x in face_indexer.names.values() if not x.isnumeric()]))))
+    names = json.dumps(sorted(list(set([x for x in tag_manager.names.values() if not x.isnumeric()]))))
     # generate the index page using the "faces" template
     template = env.get_template("server_face.html")
     html = template.render(
@@ -90,27 +91,27 @@ def show_face_images(face_id: int):
 
 @app.route('/page/<int:face_id>/<int:file_id>')
 def page(face_id:int, file_id:int):
-    src_filename = list(face_indexer.faces[face_id])[file_id]
+    src_filename = list(tag_manager.faces[face_id])[file_id]
     n = p = None
     if file_id > 0:
         p = file_id - 1
-    if file_id + 1 < len(list(face_indexer.faces[face_id])):
+    if file_id + 1 < len(list(tag_manager.faces[face_id])):
         n = file_id + 1
 
     basename = src_filename.split('/')[-1]
-    tags = face_indexer.files[src_filename]
-    data = json.loads(db[src_filename])
+    tags = tag_manager.files[src_filename]
+    data = db[src_filename]
     scale = data['metadata'].get('scale', 1.0)
     items = []
     for tag in tags:
-        name = face_indexer.names.get(tag['face_id'], tag['face_id'])
+        name = tag_manager.names.get(tag['face_id'], tag['face_id'])
         left, top, right, bottom = [int(x * scale) for x in tag['bbox']]
         width = right - left
         height = bottom - top
         items.append({'face_id': tag['face_id'], 'name': name, 'top': top, 'left': left, 'width': width, 'height': height})
 
-    name = face_indexer.names[face_id]
-    names = json.dumps(sorted(list(set([x for x in face_indexer.names.values() if not x.isnumeric()]))))
+    name = tag_manager.names[face_id]
+    names = json.dumps(sorted(list(set([x for x in tag_manager.names.values() if not x.isnumeric()]))))
     template = env.get_template("server_page.html")
     html = template.render(
         image_name = basename,
@@ -127,13 +128,13 @@ def page(face_id:int, file_id:int):
 
 @app.route('/thumb/<int:face_id>/<int:file_id>')
 def thumbnail(face_id:int, file_id:int):
-    src_filename = list(face_indexer.faces[face_id])[file_id]
+    src_filename = list(tag_manager.faces[face_id])[file_id]
     thumb = "/thumb/".join(src_filename.replace(source_dir, dest_dir).rsplit('/', 1))
     return send_file(thumb)
 
 @app.route('/image/<int:face_id>/<int:file_id>')
 def image(face_id:int, file_id:int):
-    src_filename = list(face_indexer.faces[face_id])[file_id]
+    src_filename = list(tag_manager.faces[face_id])[file_id]
     img = src_filename.replace(source_dir, dest_dir)
     return send_file(img)
 
@@ -146,7 +147,7 @@ def rename():
     data = request.get_json()
     face_id = int(data['face_id'])
     name = data['name']
-    face_indexer.rename_faceid(face_id, name)
+    tag_manager.rename_faceid(face_id, name)
     save()
     return jsonify({'status': 'OK', 'name': name})
 
@@ -157,22 +158,22 @@ def retag():
     src_filename = data['src_filename']
     old_face_id = int(data['face_id'])
     name = data['name']
-    meta = json.loads(db[src_filename])
+    meta = db[src_filename]
     scale = meta['metadata'].get('scale', 1.0)
     x = int(data['x']) / scale
     y = int(data['y']) / scale
 
     new_face_id = None
-    for fid, fname in face_indexer.names.items():
+    for fid, fname in tag_manager.names.items():
         if fname == name:
             new_face_id = fid
             break
 
     if not new_face_id:
-        new_face_id = face_indexer.add_new_facename(name)
-        faces_order = sorted(face_indexer.faces.keys(), key=lambda c: len(face_indexer.faces[c]), reverse=True)
+        new_face_id = tag_manager.add_new_facename(name)
+        faces_order = sorted(tag_manager.faces.keys(), key=lambda c: len(tag_manager.faces[c]), reverse=True)
 
-    new_file_id = face_indexer.retag(src_filename, old_face_id, new_face_id, x, y)
+    new_file_id = tag_manager.retag(src_filename, old_face_id, new_face_id, x, y)
     save()
     return jsonify({'status': 'OK', 'new_face_id': new_face_id, 'new_file_id': new_file_id, 'name': name})
 
@@ -181,12 +182,12 @@ def untag():
     data = request.get_json()
     src_filename = data['src_filename']
     old_face_id = int(data['face_id'])
-    meta = json.loads(db[src_filename])
+    meta = db[src_filename]
     scale = meta['metadata'].get('scale', 1.0)
     x = int(data['x']) / scale
     y = int(data['y']) / scale
 
-    face_indexer.remove_tag(src_filename, old_face_id, x, y)
+    tag_manager.remove_tag(src_filename, old_face_id, x, y)
     save()
     return jsonify({'status': 'OK'})
 
@@ -200,7 +201,7 @@ def tag():
     top = int(data['top'])
     height = int(data['height'])
     width = int(data['width'])
-    meta = json.loads(db[src_filename])
+    meta = db[src_filename]
     scale = meta['metadata'].get('scale', 1.0)
 
     x1 = left / scale
@@ -210,15 +211,15 @@ def tag():
     bbox = [x1,y1,x2,y2]
 
     new_face_id = None
-    for fid, fname in face_indexer.names.items():
+    for fid, fname in tag_manager.names.items():
         if fname == name:
             new_face_id = fid
             break
     if not new_face_id:
-        new_face_id = face_indexer.add_new_facename(name)
-        faces_order = sorted(face_indexer.faces.keys(), key=lambda c: len(face_indexer.faces[c]), reverse=True)
+        new_face_id = tag_manager.add_new_facename(name)
+        faces_order = sorted(tag_manager.faces.keys(), key=lambda c: len(tag_manager.faces[c]), reverse=True)
 
-    face_indexer.tag_face(src_filename, bbox, new_face_id)
+    tag_manager.tag_face(src_filename, bbox, new_face_id)
     save()
     return jsonify({'status': 'OK', 'face_id': new_face_id, 'name': name})
 
@@ -229,23 +230,23 @@ def merge():
     name = data['name']
 
     new_face_id = None
-    for fid, fname in face_indexer.names.items():
+    for fid, fname in tag_manager.names.items():
         if fname == name:
             new_face_id = fid
             break
     if not new_face_id:
-        new_face_id = face_indexer.add_new_facename(name)
-        faces_order = sorted(face_indexer.faces.keys(), key=lambda c: len(face_indexer.faces[c]), reverse=True)
+        new_face_id = tag_manager.add_new_facename(name)
+        faces_order = sorted(tag_manager.faces.keys(), key=lambda c: len(tag_manager.faces[c]), reverse=True)
 
-    for filename in face_indexer.faces[face_id]:
-        if filename not in face_indexer.faces[new_face_id]:
-            face_indexer.faces[new_face_id].append(filename)
-        for tag in face_indexer.files[filename]:
+    for filename in tag_manager.faces[face_id]:
+        if filename not in tag_manager.faces[new_face_id]:
+            tag_manager.faces[new_face_id].append(filename)
+        for tag in tag_manager.files[filename]:
             if tag['face_id'] == face_id:
                 tag['face_id'] = new_face_id
 
-    face_indexer.names.pop(face_id)
-    face_indexer.faces.pop(face_id)
+    tag_manager.names.pop(face_id)
+    tag_manager.faces.pop(face_id)
     return jsonify({'status': 'OK', 'face_id': new_face_id, 'url': f'/face/{new_face_id}'})
         
 
