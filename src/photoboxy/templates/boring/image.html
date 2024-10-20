@@ -57,10 +57,10 @@
 <br/>
 <div id='main_element_div' style='margin-right: 10px;'>
 <img class='main_image' src="{{ item | e }}" alt='{{ item }}' usemap="#clusters" />
-{% if clusters -%}
+{% if tags -%}
 <map name="clusters">
-{% for cluster in clusters -%}
-	<area shape="rect" coords="{{cluster.bbox}}" href="{{cluster_rel}}/{{cluster.cluster_id}}.html" alt="{{cluster.cluster_id}}" title="Face ID {{cluster.cluster_id}}" />
+{% for tag in tags -%}
+	<area shape="rect" coords="{{tag.bbox}}" href="{{faces_rel}}/{{tag.face_id}}.html" alt="{{tag.face_id}}" title="Face ID {{tag.face_id}}" />
 {% endfor %}
 </map>
 {% endif %}

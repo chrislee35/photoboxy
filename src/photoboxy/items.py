@@ -112,17 +112,17 @@ class FileItem:
         if self.n: next_destname = self.n.basename
         if self.p: prev_destname = self.p.basename
         # get the clusters
-        clusters = self.updater.face_indexer.get_clusters(self.path)
+        tags = self.updater.tag_manager.get_tags(self.path)
         # rescale and convert the bounding box to integers, then make it a string with a comma between each coordinate
-        if clusters and 'scale' in self.metadata:
+        if tags and 'scale' in self.metadata:
             r = self.metadata['scale']
-            for cluster in clusters:
-                cluster['bbox'] = ",".join([str(int(x*r)) for x in cluster['bbox']])
+            for tag in tags:
+                tag['bbox'] = ",".join([str(int(x*r)) for x in tag['bbox']])
         if 'embeddings' in self.metadata:
             self.metadata.pop('embeddings')
 
         # we need to calculate the relative path to the root, remember that the faces directory may not exist yet.
-        cluster_rel = ('../' * self.relpath.count('/'))+'faces'
+        faces_rel = ('../' * self.relpath.count('/'))+'faces'
         # generate the html
         html = template.render(
             up='index.html',
@@ -130,8 +130,8 @@ class FileItem:
             next=next_destname,
             prev=prev_destname,
             metadata=self.metadata,
-            cluster_rel=cluster_rel,
-            clusters=clusters,
+            faces_rel=faces_rel,
+            tags=tags,
             version=VERSION
         )
         htmlfile = f"{dest_dir}/{self.basename}.html"
@@ -172,9 +172,9 @@ class Image(FileItem):
             updater.set_data(fullpath, data)
 
         # we may have all the images created and the metadata is already good, but we are missing the html file
-        # recreate it
+        # recreate it or if the configuration of the updater is set to update the html
         desthtmlfile = f"{updater.dest_dir}/{relpath}/{self.basename}.html"
-        if not exists(desthtmlfile):
+        if not exists(desthtmlfile) or updater.htmlonly:
             # set htmlonly only if this is the only reason to set the changed flag
             self.htmlonly = not self.changed
             self.changed = True

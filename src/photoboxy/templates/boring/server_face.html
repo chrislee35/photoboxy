@@ -3,10 +3,15 @@
 <head>
 	<title>Photoboxy - {{ item | e }}</title>
 	<link rel="stylesheet" href="/res/common.css" />
+	<link rel="stylesheet" href="https://code.jquery.com/ui/1.14.0/themes/base/jquery-ui.css">
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<meta name="generator" content="photoboxy {{ version }}" />
 	<meta charset="UTF-8" />
+	<script src="https://code.jquery.com/jquery-3.7.1.js"></script>
+	<script src="https://code.jquery.com/ui/1.14.0/jquery-ui.js"></script>
 	<script type="text/javascript">
+		let names = {{ names }};
+
 		function ajax(url, data, cb) {
 			let post = JSON.stringify(data)
 			let xhr = new XMLHttpRequest()
@@ -14,15 +19,12 @@
 			xhr.setRequestHeader('Content-type', 'application/json; charset=UTF-8')
 			xhr.send(post);
 			xhr.onload = (e) => {
-				console.log(xhr);
-				console.log(e);
 				let data = JSON.parse(xhr.response);
-				document.getElementById('name').innerHTML = data['name'];
+				cb(data);
 			}
-		};
+		}
 
 		function rename_cb(data) {
-			console.log(data);
 			document.getElementById('name').innerHTML = data['name'];
 		}
 
@@ -34,6 +36,26 @@
 			};
 			ajax(url, data, rename_cb);
 		}
+
+		function merge_cb(data) {
+			console.log(data);
+			window.location = data['url'];
+		}
+
+		function mergeFace(face_id, new_name) {
+			let url = '/merge';
+			let data = {
+				face_id: face_id,
+				name: new_name,
+			};
+			ajax(url, data, merge_cb);
+		}
+
+		window.onload = (ev) => {
+			$( "#merge" ).autocomplete({ 
+				source: names
+			});
+		};
 
 	</script>
 </head>
@@ -47,6 +69,13 @@
     <label for="name">New Name</label>
     <input id="name" type="text" name="name" autofocus />
     <input type="button" value="rename" onclick="rename(this.form.face_id.value, this.form.name.value);"/>
+</form>
+
+<form name="merge" method="POST" action="/merge">
+    <input type="hidden" name="face_id" value="{{face_id}}" />
+    <label for="name">Merge With</label>
+    <input id="merge" type="text" name="name" />
+    <input type="button" value="merge" onclick="mergeFace(this.form.face_id.value, this.form.name.value);"/>
 </form>
 
 {% if images -%}

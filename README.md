@@ -28,5 +28,6 @@ I'm planning on adding image detection algorithms to group photos and to produce
 3. Create a time line
 4. Create a geomap from exif geolocation data
 5. Create an WebUI (akin to face server) to generate the photoalbum and control the clustering (or reclustering) algorithm
+6. Used tagged faces as a training set for supervised face tagging
 
 

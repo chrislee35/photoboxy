@@ -5,6 +5,7 @@ from .template_manager import TemplateManager
 
 from jinja2 import Environment, FileSystemLoader
 import os
+import time
 
 loader = FileSystemLoader(searchpath=os.path.dirname(__file__)+'/templates/boring/')
 env = Environment(loader=loader)
@@ -18,6 +19,23 @@ app = Flask(__name__)
 def save():
     db['.cluster_cache'] = face_indexer
 
+    faces_order = sorted(face_indexer.faces.keys(), key=lambda c: len(face_indexer.faces[c]), reverse=True)
+    faces_dir = dest_dir+"/faces"
+
+    # backup previous file if it exists
+    if os.path.exists(faces_dir+"/names.js"):
+        date = time.strftime("%Y%m%d%H%M%S")
+        os.rename(faces_dir+"/names.js", faces_dir+f"/names-{date}.js")
+
+    # write a javascript file that can be updated and included to replace face ids with names
+    with open(faces_dir+"/names.js", 'w') as fh:
+        fh.write("var names = ")
+        names = {}
+        for face_id in faces_order:
+            names[face_id] = face_indexer.names.get(face_id, str(face_id))
+        json.dump(names, fh, indent=2)
+        fh.write(";\n")
+
 @app.route('/')
 def show_faces():
     # 4th and a half, create a list for the index page to keep the first image thumbname and webpage for each cluster
@@ -25,7 +43,7 @@ def show_faces():
 
     # 1st, sort the clusters by length, longest first
     faces_order = sorted(face_indexer.faces.keys(), key=lambda c: len(face_indexer.faces[c]), reverse=True)
-   # 5th, enumerate through the order cluster names, so that we can determine next and previous clusters for the template
+    # 5th, enumerate through the order cluster names, so that we can determine next and previous clusters for the template
     for face_id in faces_order:
         # 6th, wrap the webpage and thumbnail urls into a list of dictionaries for the template
         # this is tricky
@@ -58,13 +76,15 @@ def show_face_images(face_id: int):
     for file_id, src_filename in enumerate(src_filenames):
         images.append( { 'file_id': file_id } )
 
+    names = json.dumps(sorted(list(set([x for x in face_indexer.names.values() if not x.isnumeric()]))))
     # generate the index page using the "faces" template
     template = env.get_template("server_face.html")
     html = template.render(
         name = name,
         face_id = face_id,
         images = images,
-        version = "0.0.1"
+        version = "0.0.1",
+        names = names
     )
     return html
 
@@ -201,6 +221,33 @@ def tag():
     face_indexer.tag_face(src_filename, bbox, new_face_id)
     save()
     return jsonify({'status': 'OK', 'face_id': new_face_id, 'name': name})
+
+@app.route('/merge', methods=["POST"])
+def merge():
+    data = request.get_json()
+    face_id = int(data['face_id'])
+    name = data['name']
+
+    new_face_id = None
+    for fid, fname in face_indexer.names.items():
+        if fname == name:
+            new_face_id = fid
+            break
+    if not new_face_id:
+        new_face_id = face_indexer.add_new_facename(name)
+        faces_order = sorted(face_indexer.faces.keys(), key=lambda c: len(face_indexer.faces[c]), reverse=True)
+
+    for filename in face_indexer.faces[face_id]:
+        if filename not in face_indexer.faces[new_face_id]:
+            face_indexer.faces[new_face_id].append(filename)
+        for tag in face_indexer.files[filename]:
+            if tag['face_id'] == face_id:
+                tag['face_id'] = new_face_id
+
+    face_indexer.names.pop(face_id)
+    face_indexer.faces.pop(face_id)
+    return jsonify({'status': 'OK', 'face_id': new_face_id, 'url': f'/face/{new_face_id}'})
+        
 
 
 if __name__ == "__main__":

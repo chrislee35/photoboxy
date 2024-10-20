@@ -1,62 +1,28 @@
 import time
-import numpy as np
-import PIL.Image as PILImage
-from insightface.app import FaceAnalysis
-from os.path import basename
-from sklearn.cluster import AgglomerativeClustering
-from .items import Image
-from collections import Counter
 import os
 import glob
 import json
 from shutil import copyfile
 
-class Embedder:
-    def __init__(self):
-        root = '.embedder'
-        self.app = FaceAnalysis(name='buffalo_sc', root=root) # use fast models in buffalo_sc
-        self.app.prepare(ctx_id=0)
-    
-    def embed(self, image: PILImage) -> list[dict[str, float]]:
-        img = np.array(image.convert('RGB'))
-        faces = self.app.get(img)
-        return [ {'embed': face.normed_embedding.tolist(), 'bbox': face.bbox.tolist()} for face in faces ]
+class TagManager:
+    def __init__(self, db):
+        self.db = db
+        self.faces = db.get('.faces', {})
+        self.names = db.get('.names', {})
+        # rebuild the files to tags database
+        self.files = {}
+        for filename in db:
+            if filename.startswith("."): continue
+            if 'tags' not in db[filename]: continue
+            self.files[filename] = db[filename]['tags']
 
-class FaceIndexer:
-    def __init__(self, **kwargs):
-        self.faces = kwargs.get('faces', {}) # for each face_id, track the files
-        self.files = kwargs.get('files', {}) # for each file, track the tag (face_id, bbox)
-        self.names = kwargs.get('names', {}) # for each face_id, track the name
+    def save(self):
+        self.db['.faces'] = self.faces
+        self.db['.names'] = self.names
+        for filename in self.files:
+            self.db[filename]['tags'] = self.files[filename]
 
-    def _cluster(self, filenames: list[str], bboxes: list[list[float]], features: list[list[float]], threshold: int, distance_threshold: float=1.0) -> list:
-        if len(filenames) != len(bboxes):
-            raise Exception("The length of filenames and bounding boxes must match.")
-        if len(filenames) != len(features):
-            raise Exception("The length of filenames and features must match.")
-        
-        # Cluster features
-        face_ids = AgglomerativeClustering(n_clusters=None, distance_threshold=distance_threshold, linkage='single').fit_predict(features)
-        # only keep clusters that have the minimum number of instances (photos)
-        c = Counter(face_ids)    
-        keep = set([x for x in c if c[x] >= threshold])
-        # save off the information needed to generate cluster pages and bounding boxes
-        tags = []
-        for face_id, filename, bbox in zip(face_ids, filenames, bboxes):
-            face_id = int(face_id) # normally, these come out of clustering as np.int64
-            if face_id not in keep: continue
-            if face_id not in self.faces: self.faces[face_id] = []
-            if face_id not in self.names: self.names[face_id] = str(face_id)
-            if filename not in self.files: self.files[filename] = []
-            # record the association of a bbox in a filename to a face_id
-            tags.append({'filename': filename, 'bbox': bbox, 'face_id': face_id})
-        return tags
-    
-    def cluster(self, filenames: list[str], bboxes: list[list[float]], features: list[list[float]], threshold: int, distance_threshold: float=1.0) -> list:
-            tags = self._cluster(filenames, bboxes, features, threshold, distance_threshold)
-            for tag in tags:
-                self.tag_face(tag['filename'], tag['bbox'], tag['face_id'])
-
-    def get_clusters(self, filename: str) -> list:
+    def get_tags(self, filename: str) -> list:
         return self.files.get(filename, [])
     
     def in_bbox(self, bbox: list[float], x: float, y: float) -> bool:
@@ -66,7 +32,20 @@ class FaceIndexer:
         if y > bbox[3]: return False
         return True
     
+    # retagging a
     def retag(self, filename: str, old_face_id: int, new_face_id: int, x: int=None, y: int=None):
+        """Retagging a tag means to change the face_id associated with a given (or multiple) bounding boxes
+
+        Args:
+            filename (str): source filename of the photo
+            old_face_id (int): the current face_id to search for and replace
+            new_face_id (int): the new face_id to use for matching tags
+            x (int, optional): if specified, it limits the replacement to just the tags that the bounding box contains the x,y. Defaults to None.
+            y (int, optional): if specified, it limits the replacement to just the tags that the bounding box contains the x,y. Defaults to None.
+
+        Returns:
+            _type_: None
+        """
         new_name = self.names.get(new_face_id, new_face_id)
         found = False
         for face in self.files[filename]:
@@ -94,6 +73,7 @@ class FaceIndexer:
         return face_id
 
     def rename_faceid(self, face_id: int, name: str):
+        """This changes the name associated with the face_id, updating all tags using that face_id"""
         self.names[face_id] = name
 
     def tag_face(self, filename: str, bbox: list[float], face_id: int):
@@ -224,8 +204,6 @@ class FaceIndexer:
             fh.write("var names = ")
             names = {}
             for face_id in faces_order:
-                face_id = str(face_id)
-                names[face_id] = self.names.get(face_id, face_id)
+                names[face_id] = self.names.get(face_id, str(face_id))
             json.dump(names, fh, indent=2)
             fh.write(";\n")
-

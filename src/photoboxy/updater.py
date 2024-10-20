@@ -1,18 +1,26 @@
 import diskcache
-import json
 import os
 import shutil
 import time
+
+from threading import Thread
+from collections import Counter
+
 from .directory import Directory
 from .template_manager import TemplateManager
 from .pool import Pool
-from .faces import Embedder, FaceIndexer
-from threading import Thread
+
+from .clusterer import Clusterer
+from .embedder import Embedder
+from .tag_manager import TagManager
 
 class Updater:
     # through away clusters that don't have enough images to make them worth while
-    # i.e., the face cluster must appear in at least {CLUSTER_THRESHOLD} images to be considered
-    CLUSTER_THRESHOLD = 3
+    # i.e., the face cluster must appear in at least {CLUSTER_OCCURANCE} images to be considered
+    CLUSTER_OCCURANCE = 5
+    # this cluster distance controls how close two sets of pictures embeddings must be to even be considered as 
+    # one cluster
+    CLUSTER_DISTANCE = 1.0
 
     def __init__(self, fullpath, dest_dir):
         self.stats = {
@@ -47,7 +55,6 @@ class Updater:
         self.directory = Directory(fullpath, updater=self)
         self.pool = Pool()
         self.embedder = Embedder()
-        self.face_indexer = FaceIndexer()
 
         self.print_stats_thread = Thread(target=self.print_stats_continuous)
         self.timestamps = {
@@ -57,6 +64,8 @@ class Updater:
             'gen_s': None,
             'gen_e': None
         }
+
+        self.htmlonly = False
         
     def _add_change(self, type, filename):
         self.stats['changed'][type] += 1
@@ -82,22 +91,14 @@ class Updater:
     def embed(self, img):
         return self.embedder.embed(img)
 
-    def load_cluster(self):
-        if '.cluster_cache' in self.db:
-            self.face_indexer = self.db['.cluster_cache']
-
     def needs_clustering(self) -> bool:
         """ Decide if FaceIndexer should rerun the clustering algorithm """
-        # if the clustering database is empty, sure, let's run it (at worse, it clusters nothing)
-        if '.cluster_cache' not in self.db or self.db['.cluster_cache'] is None:
-            return True
-        
         # if there are changed images that have faces (embeddings) in them
         for changed in self.changes:
-            data = self.db.get(changed)
+            data = self.db.get(changed.path)
             if 'metadata' not in data: continue
-            if 'embeddings' not in data['metadata']: continue
-            if len(data['metadata']['embeddings']) > 0:
+            if 'embeddings' not in data: continue
+            if len(data['embeddings']) > 0:
                 return True
                 
         return False
@@ -108,36 +109,66 @@ class Updater:
         bboxes = []
         embeddings = []
         filenames = []
+        # keeps track of which images were already tagged before clustering
+        already_tagged = set()
+        # load the mapping from face_id to filenames, or initialize to an empty dict
+        faces = self.db.get('.faces', {})
         # for every file in the database, not just those that were updated
         for filename in self.db.keys():
-            # skip the clustering cache
-            if filename == '.cluster_cache': continue
+            # skip the clustering cache or other special entries
+            if filename.startswith("."): continue
             # get the data
             data = self.get_data(filename)
             # see if the file has embeddings, this test is cheaper than testing if the file still exists
             if 'metadata' not in data: continue
-            if 'embeddings' not in data['metadata']: continue
+            if 'embeddings' not in data: continue
             # make sure that the source still exists
             if not os.path.exists(filename): continue
+            # track which images already have tags
+            if 'tags' in data:
+                already_tagged.add(filename)
             # put each embedding, since an image can have multiple faces, into an embeddings list
             # keep the filename and bounding box in a list so that we can join the answer back into the metadata
-            for embed in data['metadata']['embeddings']:
+            for embed in data['embeddings']:
                 filenames.append(filename)
                 embeddings.append(embed['embed'])
                 bboxes.append(embed['bbox'])
         # run the clustering algorithm
-        self.face_indexer.cluster(filenames, bboxes, embeddings, Updater.CLUSTER_THRESHOLD)
-        self.db['.cluster_cache'] = self.face_indexer
+        face_ids = Clusterer.cluster(embeddings, Updater.CLUSTER_DISTANCE)
+        # filter for the minimum occurance requirement
+        c = Counter(face_ids)
+        keep = set([x for x in c if c[x] >= Updater.CLUSTER_OCCURANCE])
+        for face_id, filename, bbox in zip(face_ids, filenames, bboxes):
+            # don't retag photos that are already tagged
+            if filename in already_tagged: continue
+            # don't add tags that don't meet the minimum occurance
+            if face_id not in keep: continue
+            # get the file's record from the database
+            data = self.get_data(filename)
+            # create the new tags list if needed
+            if 'tags' not in data: data['tags'] = []
+            # add the tag to the list
+            data['tags'].append({'face_id': face_id, 'bbox': bbox})
+            # save the data back to the file's record in the database
+            self.set_data(filename, data)
+            # save the mapping from the face_id to the filename, remember the a face can appear multiple times in a photo
+            if face_id not in faces: faces[face_id] = set()
+            if filename not in faces[face_id]: faces[face_id].add(filename)
+
+        self.db['.faces'] = faces
     
     def generate(self, dest_dir, template_name='boring'):
         self.state = 'generating'
         self.timestamps['gen_s'] = time.time()
         templates = TemplateManager.get_templates(template_name)
+        # create the tag_manager here because the database is now updated with all the files
+        # and we need it available for the generation of the image files
+        self.tag_manager = TagManager(self.db)
         self.directory.generate(templates, dest_dir)
         self.pool.waitall()
         # the clusterer needs to know the source dir so that it can rewrite the filenames
         # into relative urls for the images and thumbnails
-        self.face_indexer.generate(templates, dest_dir, self.source_dir)
+        self.tag_manager.generate(templates, dest_dir, self.source_dir)
         self.state = 'generated'
         self.timestamps['gen_e'] = time.time()
         self.print_stats_thread.join()
@@ -149,8 +180,6 @@ class Updater:
     
     def get_data(self, filename):
         data = self.db.get(filename)
-        if data:
-            data = json.loads(data)
         return data
     
     def set_data(self, filename, data):
@@ -162,7 +191,7 @@ class Updater:
             date = data['mtime'].split(' ')[0]
             data['date'] = date
 
-        self.db[filename] = json.dumps(data)
+        self.db[filename] = data
 
     def fork_proc(self, proc, args):
         self.pool.do_work(proc, args)

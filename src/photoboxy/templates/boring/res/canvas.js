@@ -70,8 +70,7 @@ class FaceTagManager {
     updateRecent(name) {
         console.log("updateRecent", name);
         if( this.recent.indexOf(name) > -1 ) {
-            let index = this.recent.indexOf(name);
-            this.recent.splice(index, 1);
+            return;
         }
         this.recent.unshift(name);
         if( this.recent.length > 10) this.recent.pop();
@@ -109,7 +108,7 @@ class FaceTagManager {
             ctx.beginPath();
             ctx.textAlign = "center";
             ctx.textBaseline = "bottom";
-            ctx.font = "14px Verdana";
+            ctx.font = "16px Verdana Bold";
             ctx.fillStyle = box_color;
             if(i == this.current_tag) ctx.fillStyle = box_color_hl;
             //let textWidth = ctx.measureText(tag.name).width;
@@ -243,6 +242,11 @@ class FaceTagManager {
         } else if (e.key == "Delete") {
             if (myself.current_tag == undefined) return;
             myself.deleteTag(myself.current_tag);
+        } else if (e.key == "u") {
+            let n = myself.tags.length;
+            for(var i=0; i<n; i++) {
+                myself.deleteTag(0);
+            }
         } else if (e.key == "n") {
             window.location = $( "#next" )[0].href;
         } else if (e.key == "p") {
@@ -259,6 +263,14 @@ class FaceTagManager {
             e.preventDefault();
             e.stopPropagation();
             let offset = e.keyCode - 48;
+            if(offset > myself.recent.length - 1) return;
+            let newname = myself.recent[offset];
+            myself.renameTag(myself.current_tag, newname);
+        } else if (e.keyCode >= 96 && e.keyCode <= 105) {
+            if (myself.current_tag == undefined) return;
+            e.preventDefault();
+            e.stopPropagation();
+            let offset = e.keyCode - 96;
             if(offset > myself.recent.length - 1) return;
             let newname = myself.recent[offset];
             myself.renameTag(myself.current_tag, newname);
@@ -314,7 +326,7 @@ class FaceTagManager {
         tag['face_id'] = response.new_face_id;
         tag['name'] = response.name;
         myself.drawTags();
-        myself.updateRecent(response.name);
+        //myself.updateRecent(response.name);
     };
 
     newtag_call(name, left, top, width, height) {
@@ -339,7 +351,7 @@ class FaceTagManager {
         let myself = canvas.facetag_manager;
         let c = myself.start;
         myself.addTag(face_id, name, c.l, c.t, c.w, c.h);
-        myself.updateRecent(name);
+        //myself.updateRecent(name);
         Object.keys(c).forEach( (k) => {c[k] = undefined });
         myself.drawTags();
     };
