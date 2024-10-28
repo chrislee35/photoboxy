@@ -2,7 +2,7 @@ from flask import Flask, send_file, request, redirect, jsonify
 import diskcache
 import json
 from .template_manager import TemplateManager
-from .tag_manager import TagManager
+from .face_tag_manager import FaceTagManager
 
 from jinja2 import Environment, FileSystemLoader
 import os
@@ -14,7 +14,7 @@ env = Environment(loader=loader)
 source_dir = "/home/chris/bakudan/imgs/photos"
 dest_dir = "/home/chris/Jungle/photoboxy"
 db = diskcache.Index(dest_dir+'/.db')
-tag_manager = TagManager(db)
+tag_manager = FaceTagManager(db)
 app = Flask(__name__)
 
 def save():

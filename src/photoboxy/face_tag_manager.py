@@ -4,7 +4,7 @@ import glob
 import json
 from shutil import copyfile
 
-class TagManager:
+class FaceTagManager:
     def __init__(self, db):
         self.db = db
         self.faces = db.get('.faces', {})

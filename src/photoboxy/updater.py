@@ -12,7 +12,7 @@ from .pool import Pool
 
 from .clusterer import Clusterer
 from .embedder import Embedder
-from .tag_manager import TagManager
+from .face_tag_manager import FaceTagManager
 
 class Updater:
     # through away clusters that don't have enough images to make them worth while
@@ -163,7 +163,7 @@ class Updater:
         templates = TemplateManager.get_templates(template_name)
         # create the tag_manager here because the database is now updated with all the files
         # and we need it available for the generation of the image files
-        self.tag_manager = TagManager(self.db)
+        self.tag_manager = FaceTagManager(self.db)
         self.directory.generate(templates, dest_dir)
         self.pool.waitall()
         # the clusterer needs to know the source dir so that it can rewrite the filenames
