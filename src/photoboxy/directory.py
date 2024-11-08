@@ -22,6 +22,7 @@ class Directory:
         self.updater = updater
         self.basename = basename(fullpath)
         self.mtime = mtime(fullpath)
+        self.comment = None
         self.type = 'folder'
         self.image = "res/album.png"
         self.files = []
@@ -65,6 +66,7 @@ class Directory:
                 updater._add_total('folder')
                 newdir = Directory(item_path, f"{self.relpath}{f.name}/", updater)
                 self.subdirs.append(newdir)
+                newdir.comment = comments.get(f.name)
                 newdir.enumerate(updater)
                 if newdir.changed:
                     self.changed = True
@@ -73,6 +75,7 @@ class Directory:
                 updater._add_total('image')
                 newfile = Image(item_path, self.relpath, updater)
                 self.files.append(newfile)
+                newfile.comment = comments.get(f.name)
                 if newfile.changed:
                     self.changed = True
                     updater._add_change('image', newfile)
@@ -81,6 +84,7 @@ class Directory:
                 updater._add_total('video')
                 newfile = Video(item_path, self.relpath, updater)
                 self.files.append(newfile)
+                newfile.comment = comments.get(f.name)
                 if newfile.changed:
                     self.changed = True
                     updater._add_change('video', newfile)
@@ -89,6 +93,7 @@ class Directory:
                 updater._add_total('note')
                 newfile = Note(item_path, self.relpath, updater)
                 self.files.append(newfile)
+                newfile.comment = comments.get(f.name)
                 if newfile.changed:
                     self.changed = True
                     updater._add_change('note', newfile)
@@ -196,7 +201,8 @@ class Directory:
             parents[-1]['link'] = "javascript:void(0)"
             parents[-1]['disabled'] = True
         
-        html = templates[self.type].render(item=self.relpath, parents=parents, subdirs=self.subdirs, files=self.files, version=VERSION)
+        html = templates[self.type].render(item=self.relpath, parents=parents, subdirs=self.subdirs, files=self.files, 
+            comment=self.comment, version=VERSION)
         with open(f"{dest_dir}/index.html", "w") as of:
             of.write(html)
 
@@ -246,7 +252,8 @@ class Directory:
                 {'folder': folder, 'link': ("../" * (len(parts) - index - 1)) + "index.html" } 
                 for index, folder in enumerate(parts[0:-1])
             ]
-        html = templates[self.type].render(item=self.rel, parents=parents, subdirs=self.subdirs, files=self.files, version=VERSION)
+        html = templates[self.type].render(item=self.rel, parents=parents, subdirs=self.subdirs, files=self.files, 
+            comment=self.comment, version=VERSION)
         with open(f"{dest_dir}/index.html", "w") as of:
             of.write(html)
 

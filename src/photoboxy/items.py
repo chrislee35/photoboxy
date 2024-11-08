@@ -71,6 +71,7 @@ class FileItem:
         self.mtime = mtime(fullpath)
         self.sort_key = self.mtime # default sort key
         self.size = filesize(fullpath)
+        self.comment = None
         self.metadata = {}
         self.changed = True
         self.htmlonly = False
@@ -132,6 +133,7 @@ class FileItem:
             metadata=self.metadata,
             faces_rel=faces_rel,
             tags=tags,
+            comment=self.comment,
             version=VERSION
         )
         htmlfile = f"{dest_dir}/{self.basename}.html"

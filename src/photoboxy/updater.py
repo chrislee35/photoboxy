@@ -13,6 +13,7 @@ from .pool import Pool
 from .clusterer import Clusterer
 from .embedder import Embedder
 from .face_tag_manager import FaceTagManager
+from .timeline_manager import TimelineManager
 
 class Updater:
     # through away clusters that don't have enough images to make them worth while
@@ -96,6 +97,8 @@ class Updater:
         # if there are changed images that have faces (embeddings) in them
         for changed in self.changes:
             data = self.db.get(changed.path)
+            if not data:
+                return False
             if 'metadata' not in data: continue
             if 'embeddings' not in data: continue
             if len(data['embeddings']) > 0:
@@ -169,6 +172,12 @@ class Updater:
         # the clusterer needs to know the source dir so that it can rewrite the filenames
         # into relative urls for the images and thumbnails
         self.tag_manager.generate(templates, dest_dir, self.source_dir)
+        
+        # now generate the calendar
+        timeline_manager = TimelineManager(self.db, self.source_dir, dest_dir)
+        timeline_manager.generate_calendar()
+
+        # finish the process
         self.state = 'generated'
         self.timestamps['gen_e'] = time.time()
         self.print_stats_thread.join()

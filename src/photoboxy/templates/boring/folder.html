@@ -14,6 +14,7 @@
 {% endfor %}
 {% if not item -%}
 <a class='button' href='faces/index.html'>Faces</a>
+<a class='button' href='calendar.html'>Calendar</a>
 {% endif %}
 <a class='button' href='shuffle.html'>Slide Show</a>
 <center>
@@ -46,5 +47,8 @@
 {% endif %}
 
 </center>
+{%- if comment -%}
+<div class="comment">{{ comment }}</div>
+{% endif %}
 </body>
 </html>

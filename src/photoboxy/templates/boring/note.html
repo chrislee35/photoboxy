@@ -49,9 +49,11 @@
 <a href="{{ item | e }}" alt='{{ item }}'>
   <img class='main_image' src="{{ item | e }}.png"  style="background-color: white;" />
 </a>
-<br/>
-<br/>
-<br/>
+
+{%- if comment -%}
+<div class="comment">{{ comment }}</div>
+{% endif %}
+
 <table class='metadata'>
 	<tr><th>Magic</th><td>{{ metadata['magic'] }}</td></tr>
 	<tr><th>Size</th><td>{{ metadata['stat'].st_size }}</td></tr>

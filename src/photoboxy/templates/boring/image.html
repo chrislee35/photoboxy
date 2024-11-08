@@ -68,6 +68,10 @@
 
 <h1>{{ item }}</h1>
 
+{%- if comment -%}
+<div class="comment">{{ comment }}</div>
+{% endif %}
+
 <table class='metadata'>
 	{% for meta in metadata -%}
 	<tr><th>{{ meta }}</th><td>{{ metadata[meta] }}</td></tr>

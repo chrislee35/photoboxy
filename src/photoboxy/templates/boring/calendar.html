@@ -1,0 +1,94 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+	<title>Photoboxy - Calendar</title>
+	<link rel="stylesheet" href="res/common.css" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="generator" content="photoboxy {{ version }}" />
+	<meta charset="UTF-8" />
+    <style type="text/css">
+        div.popup {
+            visibility: hidden;
+            background-color: #eee;
+            position: absolute;
+            padding: 10px;
+            border: thin solid black;
+        }
+    </style>
+    <script type="text/javascript">
+        loadPage = (evt) => {
+            if(evt.target.value) {
+                window.location = evt.target.value;
+            }
+        };
+        document.addEventListener("DOMContentLoaded", function(event) {
+            let select_boxes = document.getElementsByTagName('select');
+            for (let ele of select_boxes) {
+                ele.onchange = loadPage;
+            };
+        });
+
+        function popup(year, month) {
+            var ele = document.getElementById("popup_"+year+"_"+month);
+            if (ele) {
+                ele.style.visibility = "visible";
+            }
+        }
+
+        function unpopup(year, month) {
+            var ele = document.getElementById("popup_"+year+"_"+month);
+            if (ele) {
+                ele.style.visibility = "hidden";
+            }
+        }
+    </script>
+</head>
+
+<body>
+<a class="button" href="index.html">Home</a>
+<center>
+
+<div id="calendar" class="box">
+<table border="1" cellpadding="2" cellspacing="0">
+    <form name="calendar" onsubmit="return false;">
+    <thead>
+        <tr>
+            <th>Year</th>
+            <th>Jan</th>
+            <th>Feb</th>
+            <th>Mar</th>
+            <th>Apr</th>
+            <th>May</th>
+            <th>Jun</th> 
+            <th>Jul</th>
+            <th>Aug</th>
+            <th>Sep</th>
+            <th>Oct</th>
+            <th>Nov</th>
+            <th>Dec</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for year in calendar -%}
+        <tr>
+            <td>{{year.year}}</td>
+            {% for month in range(12) -%}
+            <td onmouseover="popup({{year.year}}, {{month}});" onmouseout="unpopup({{year.year}}, {{month}});">
+                {% if year.months[month].thumbnail -%}
+                <img src="{{year.months[month].thumbnail | urlencode }}" />
+                <div class="popup" id="popup_{{year.year}}_{{month}}">
+                    {% for day in year.months[month].folders[0:10] -%}
+                    <a href="{{day.folder | urlencode}}/index.html">{{day.day}}</a><br/>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</form>
+</table>
+</div>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import sys
 sys.path.append('.')
-from photoboxy import Photoboxy
+from photoboxy.photoboxy import generate_album
 
-Photoboxy.update("tests/input", "tests/output")
+generate_album("tests/input", "tests/output")

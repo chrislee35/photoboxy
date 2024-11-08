@@ -55,7 +55,9 @@
 </div>
 
 <h1>{{ item }}</h1>
-
+{%- if comment -%}
+<div class="comment">{{ comment }}</div>
+{% endif %}
 <table class='metadata'>
 	<tr><th>Format</th><td>{{ metadata['format']['format_long_name'] }}</td></tr>
 	<tr><th>Duration</th><td>{{ metadata['format']['duration'] }}</td></tr>
