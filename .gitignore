@@ -6,4 +6,7 @@ __pycache__
 *.code-workspace
 .conda
 .embedder
+.db
+.ruff_cache
 tests/output/*
+typings

@@ -1,41 +1,43 @@
-import os
 import time
-from subprocess import Popen, PIPE
-from multiprocessing import Process
+from multiprocessing.context import Process
+from subprocess import Popen
+from typing import Callable
 
 # create a process pool for long running tasks in the background
 # by default it will use os.cpu_count() as the number of workers
 class Pool:
-    def __init__(self, count=None):
-        self.count = 2 #count or os.cpu_count()
+    def __init__(self, count: int=2) -> None:
+        self.count: int = count
         self.children: list[Process] = []
 
-    def wait_for_availability(self):
+    def wait_for_availability(self) -> None:
         while len(self.children) >= self.count:
-            finished = [x for x in self.children if not x.is_alive()]
+            finished: list[Process] = [x for x in self.children if not x.is_alive()]
             self.children = [x for x in self.children if x.is_alive()]
-            for child in finished: child.join()
-            if len(finished) == 0: time.sleep(0.1)
+            for child in finished:
+                child.join()
+            if len(finished) == 0:
+                time.sleep(0.1)
 
-    def do_work(self, cmd_or_proc, args=None):
+    def do_work(self, cmd_or_proc: str | Callable[..., None], args: list[str] | None =None) -> None:
         self.wait_for_availability()
         if isinstance(cmd_or_proc, str):
-            self.do_proc(self.cmd_wrapper, args=[cmd_or_proc])
+            self.do_proc(proc=self.cmd_wrapper, args=[cmd_or_proc])
         else:
-            self.do_proc(cmd_or_proc, args)
+            self.do_proc(proc=cmd_or_proc, args=args)
     
-    def cmd_wrapper(self, cmd):
-        p = Popen(cmd, shell=True)
-        p.wait()
+    def cmd_wrapper(self, cmd: str) -> None:
+        p: Popen[bytes] = Popen[bytes](cmd, shell=True)
+        p.wait()  # pyright: ignore[reportUnusedCallResult]
 
-    def do_proc(self, proc, args=None):
+    def do_proc(self, proc: Callable[..., None], args: list[str] | None =None) -> None:
         if args:
-            p = Process(target=proc, args=args)
+            p: Process = Process(target=proc, args=args)
         else:
-            p = Process(target=proc)
+            p: Process = Process(target=proc)
         self.children.append(p)
         p.start()
         
-    def waitall(self):
+    def waitall(self) -> None:
         for child in self.children:
             child.join()

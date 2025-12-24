@@ -1,5 +1,8 @@
 import sys
-sys.path.append('.')
-from photoboxy.photoboxy import generate_album
+import shutil
 
-generate_album("tests/input", "tests/output")
+sys.path.append('src')
+from photoboxy.photoboxy import generate_album
+shutil.rmtree("tests/output")
+shutil.rmtree(".db")
+generate_album(source_dir="***REMOVED***", dest_dir="tests/output")

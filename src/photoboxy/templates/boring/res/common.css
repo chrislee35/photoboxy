@@ -139,6 +139,13 @@ A {
 	text-align: center;
 	width: -moz-available;
 }
+#keyboard_shortcuts {
+	position: absolute;
+	bottom: 5px;
+	right: 10px;
+	font-size: 10pt;
+	color: #eee;
+}
 
 @media only screen and (max-device-width: 480px) {
 	div.box {

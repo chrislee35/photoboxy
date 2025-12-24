@@ -41,7 +41,7 @@
 				}
 			]
 		});
-		$( "#name" ).autocomplete({ 
+		$( "#name" ).autocomplete({
 			source: names, 
 			change: () => {
 				$( "#name_dialog" ).dialog( "close" );
@@ -163,6 +163,46 @@
 		<label for="rename">Name: </label>
 		<input type="text" id="rename" name="rename" />
 	</form>
+</div>
+
+<div id="keyboard_shortcuts">
+	Keyboard Shortcuts
+	<table>
+		<tbody>
+			<tr>
+				<td>F2</td>
+				<td>Change the Face ID for the selected tag</td>
+			</tr>
+			<tr>
+				<td>r</td>
+				<td>Change the name of the Face ID for the selected tag</td>
+			</tr>
+			<tr>
+				<td>delete</td>
+				<td>Remove the selected tag from this photo</td>
+			</tr>
+			<tr>
+				<td>u</td>
+				<td>Remove all tags from this photo</td>
+			</tr>
+			<tr>
+				<td>n</td>
+				<td>Next photo for this Face Id</td>
+			</tr>
+			<tr>
+				<td>p</td>
+				<td>Previous photo for this Face Id</td>
+			</tr>
+			<tr>
+				<td>x</td>
+				<td>Toggle through the tags</td>
+			</tr>
+			<tr>
+				<td>0-9</td>
+				<td>Change the face id of the current tag to someone in the recent 10 list</td>
+			</tr>
+		</tbody>
+	</table>
 </div>
 
 </body>

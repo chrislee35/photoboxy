@@ -1,21 +1,35 @@
 from flask import Flask, send_file, request, redirect, jsonify
-import diskcache
 import json
 from .template_manager import TemplateManager
 from .face_tag_manager import FaceTagManager
+from .photobox_db import PhotoboxDB
 
 from jinja2 import Environment, FileSystemLoader
 import os
 import time
+import sys
 
-loader = FileSystemLoader(searchpath=os.path.dirname(__file__)+'/templates/boring/')
-env = Environment(loader=loader)
+if len(sys.argv) != 3:
+    print(f"Usage: {sys.argv[0]} <source directory> <destination directory>")
+    exit(-2)
 
-source_dir = "/home/chris/bakudan/imgs/photos"
-dest_dir = "/home/chris/Jungle/photoboxy"
-db = diskcache.Index(dest_dir+'/.db')
+source_dir = sys.argv[1].strip().rstrip('/')
+dest_dir = sys.argv[2].strip().rstrip('/')
+db_dir = os.path.join(source_dir, '.db')
+
+if not os.path.exists(dest_dir):
+    print("Could not find destination directory")
+    exit(-6)
+
+if not os.path.exists(db_dir):
+    print("Could not find diskcache db current path's .db/")
+    exit(-7)
+
+db = PhotoboxDB(db_dir)
 tag_manager = FaceTagManager(db)
 app = Flask(__name__)
+loader = FileSystemLoader(searchpath=os.path.dirname(__file__)+'/templates/boring/')
+env = Environment(loader=loader)
 
 def save():
     tag_manager.save()
@@ -190,6 +204,22 @@ def untag():
     tag_manager.remove_tag(src_filename, old_face_id, x, y)
     save()
     return jsonify({'status': 'OK'})
+
+@app.route('/untag-all', methods=["POST"])
+def untag_all():
+    data = request.get_json()
+    src_filename = data['src_filename']
+    tag_manager.remove_tag_all(src_filename)
+    save()
+    return jsonify({'status': 'OK'})
+
+@app.route('/untag-folder', methods=["POST"])
+def untag_folder():
+    data = request.get_json()
+    folder = data['folder']
+    photo_count, tag_count = tag_manager.remove_tag_folder(folder)
+    save()
+    return jsonify({'status': 'OK', 'photos': photo_count, 'tags': tag_count})
 
 @app.route('/tag', methods=["POST"])
 def tag():

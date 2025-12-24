@@ -243,10 +243,7 @@ class FaceTagManager {
             if (myself.current_tag == undefined) return;
             myself.deleteTag(myself.current_tag);
         } else if (e.key == "u") {
-            let n = myself.tags.length;
-            for(var i=0; i<n; i++) {
-                myself.deleteTag(0);
-            }
+            myself.deltag_all_call();
         } else if (e.key == "n") {
             window.location = $( "#next" )[0].href;
         } else if (e.key == "p") {
@@ -375,4 +372,19 @@ class FaceTagManager {
         myself.drawTags();
     };
 
+    deltag_all_call() {
+        let url = `/untag-all`;
+        let data = {
+            src_filename: this.src_filename
+        };
+        this.ajax(url, data, this.deltag_all_cb);
+    };
+
+    deltag_all_cb(response) {
+        let canvas = document.getElementById('canvas');
+        let myself = canvas.facetag_manager;
+        myself.tags = []
+        myself.current_tag = undefined;
+        myself.drawTags();
+    };
 };

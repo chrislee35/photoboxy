@@ -78,7 +78,7 @@
                 <img src="{{year.months[month].thumbnail | urlencode }}" />
                 <div class="popup" id="popup_{{year.year}}_{{month}}">
                     {% for day in year.months[month].folders[0:10] -%}
-                    <a href="{{day.folder | urlencode}}/index.html">{{day.day}}</a><br/>
+                    <a href="{{day.folder | urlencode}}/index.html">{{day.basename}}</a><br/>
                     {% endfor %}
                 </div>
                 {% endif %}
