@@ -19,7 +19,7 @@ from .config import Config
 class Updater:
     # through away clusters that don't have enough images to make them worth while
     # i.e., the face cluster must appear in at least {CLUSTER_OCCURANCE} images to be considered
-    CLUSTER_OCCURANCE: int = 2
+    CLUSTER_OCCURANCE: int = 5
     # this cluster distance controls how close two sets of pictures embeddings must be to even be considered as 
     # one cluster
     CLUSTER_DISTANCE: float = 1.0
@@ -157,7 +157,6 @@ class Updater:
                     bboxes.append(face.bbox)
 
         # check if there are any faces
-        print(f"Total faces: {len(embeddings)}, already tagged {len(already_tagged)}")
         if len(embeddings) == 0:
             return
 

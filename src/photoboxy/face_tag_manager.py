@@ -134,7 +134,6 @@ class FaceTagManager:
                 version = "0.0.1"
             )
             if html is None:
-                print(f"Could not render {tag.id}.html")
                 continue
             # lastly, write the html into the cluster page file
             with open(file=faces_dir+f"/{tag.id}.html", mode='w') as fh:
